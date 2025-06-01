@@ -8,6 +8,7 @@ import (
 	"io"
 	"oasisdb/internal/config"
 	"os"
+	"path"
 )
 
 const (
@@ -22,14 +23,6 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 )
 
-// BlockEntry 表示数据块中的一个条目
-type BlockEntry struct {
-	Key       []byte
-	Value     []byte
-	KeySize   uint16
-	ValueSize uint32
-}
-
 // IndexEntry 表示索引块中的一个条目
 type IndexEntry struct {
 	MaxKey []byte
@@ -37,9 +30,8 @@ type IndexEntry struct {
 	Size   uint64
 }
 
-// SSTable 实现了排序字符串表
-type SSTable struct {
-	file         *os.File
+type SSTableReader struct {
+	src          *os.File
 	reader       *bufio.Reader
 	filterOffset uint64       // 布隆过滤器的偏移量
 	filterSize   uint64       // 布隆过滤器的大小
@@ -48,22 +40,13 @@ type SSTable struct {
 	indexEntries []IndexEntry // 缓存的索引条目
 }
 
-// Builder 用于构建 SSTable
-type Builder struct {
-	file        *os.File
-	writer      *bufio.Writer
-	indexBlock  []IndexEntry
-	blockOffset uint64
-	conf        *config.Config
-}
-
-func NewSSTable(file string, conf *config.Config) (*SSTable, error) {
-	src, err := os.Open(file)
+func NewSSTableReader(file string, conf *config.Config) (*SSTableReader, error) {
+	src, err := os.OpenFile(path.Join(conf.Dir, file), os.O_RDONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
 
-	// 读取 footer
+	// read footer
 	stat, err := src.Stat()
 	if err != nil {
 		return nil, err
@@ -78,16 +61,13 @@ func NewSSTable(file string, conf *config.Config) (*SSTable, error) {
 	if _, err := src.ReadAt(footer, size-int64(footerSize)); err != nil {
 		return nil, err
 	}
-
-	// 验证魔数
 	magic := binary.LittleEndian.Uint32(footer[36:])
 	if magic != magicNumber {
 		return nil, ErrInvalidFile
 	}
 
-	// 解析 footer 中的偏移量和大小
-	ss := &SSTable{
-		file:         src,
+	ss := &SSTableReader{
+		src:          src,
 		reader:       bufio.NewReader(src),
 		filterOffset: binary.LittleEndian.Uint64(footer[0:8]),
 		filterSize:   binary.LittleEndian.Uint64(footer[8:16]),
@@ -95,28 +75,33 @@ func NewSSTable(file string, conf *config.Config) (*SSTable, error) {
 		indexSize:    binary.LittleEndian.Uint64(footer[24:32]),
 	}
 
-	// 加载索引块
-	if err := ss.loadIndex(); err != nil {
+	if err := ss.readIndex(); err != nil {
 		return nil, err
 	}
 
 	return ss, nil
 }
 
-// loadIndex 加载索引块到内存
-func (s *SSTable) loadIndex() error {
-	// 定位到索引块开始位置
-	if _, err := s.file.Seek(int64(s.indexOffset), io.SeekStart); err != nil {
+// readIndex read index block to memory
+func (s *SSTableReader) readIndex() error {
+	// Reader footer first
+	if s.indexOffset == 0 || s.indexSize == 0 {
+		if err := s.ReadFooter(); err != nil {
+			return err
+		}
+	}
+
+	if _, err := s.src.Seek(int64(s.indexOffset), io.SeekStart); err != nil {
 		return err
 	}
 
-	// 读取索引块
+	// read index block
 	indexData := make([]byte, s.indexSize)
-	if _, err := io.ReadFull(s.file, indexData); err != nil {
+	if _, err := io.ReadFull(s.src, indexData); err != nil {
 		return err
 	}
 
-	// 解析索引条目
+	// parse index entries
 	s.indexEntries = make([]IndexEntry, 0)
 	for i := uint64(0); i < s.indexSize; {
 		// 读取 key 长度
@@ -144,8 +129,15 @@ func (s *SSTable) loadIndex() error {
 	return nil
 }
 
-// findBlock 二分查找定位数据块
-func (s *SSTable) findBlock(key []byte) (offset, size uint64) {
+func (s *SSTableReader) readFilterBlock(block []byte) (map[uint64][]byte, error) {
+	blockToFilter := make(map[uint64][]byte)
+
+	// TODO: implement bloom filter
+	return blockToFilter, nil
+}
+
+// findBlock using binary search to find Blocks
+func (s *SSTableReader) findBlock(key []byte) (offset, size uint64) {
 	left, right := 0, len(s.indexEntries)-1
 
 	for left <= right {
@@ -166,10 +158,10 @@ func (s *SSTable) findBlock(key []byte) (offset, size uint64) {
 }
 
 // searchBlock 在数据块中搜索 key
-func (s *SSTable) searchBlock(key []byte, offset, size uint64) ([]byte, error) {
+func (s *SSTableReader) searchBlock(key []byte, offset, size uint64) ([]byte, error) {
 	// 读取数据块
 	block := make([]byte, size)
-	if _, err := s.file.ReadAt(block, int64(offset)); err != nil {
+	if _, err := s.src.ReadAt(block, int64(offset)); err != nil {
 		return nil, err
 	}
 
@@ -206,13 +198,47 @@ func (s *SSTable) searchBlock(key []byte, offset, size uint64) ([]byte, error) {
 }
 
 // mayContain 检查 key 是否可能存在（布隆过滤器）
-func (s *SSTable) mayContain(key []byte) bool {
+func (s *SSTableReader) mayContain(key []byte) bool {
 	// TODO: 实现布隆过滤器
 	return true // 暂时总是返回 true
 }
 
+func (s *SSTableReader) Close() error {
+	s.reader.Reset(s.src)
+	return s.src.Close()
+}
+
+func (s *SSTableReader) Size() (uint64, error) {
+	if s.indexOffset == 0 {
+		if err := s.ReadFooter(); err != nil {
+			return 0, err
+		}
+	}
+	return s.indexOffset + s.indexSize, nil
+}
+
+func (s *SSTableReader) ReadFooter() error {
+	// find the footer position
+	if _, err := s.src.Seek(-footerSize, io.SeekEnd); err != nil {
+		return err
+	}
+
+	// read footer
+	footer := make([]byte, footerSize)
+	if _, err := s.src.Read(footer); err != nil {
+		return err
+	}
+
+	// parse footer
+	s.filterOffset = binary.LittleEndian.Uint64(footer[0:8])
+	s.filterSize = binary.LittleEndian.Uint64(footer[8:16])
+	s.indexOffset = binary.LittleEndian.Uint64(footer[16:24])
+	s.indexSize = binary.LittleEndian.Uint64(footer[24:32])
+	return nil
+}
+
 // Get 根据 key 获取对应的值
-func (s *SSTable) Get(key []byte) ([]byte, error) {
+func (s *SSTableReader) Get(key []byte) ([]byte, error) {
 	// 1. 使用布隆过滤器快速判断 key 是否可能存在
 	if !s.mayContain(key) {
 		return nil, ErrKeyNotFound

@@ -9,3 +9,7 @@ type DB struct {
 	LSMTree *storage.LSMTree
 	Config  Config
 }
+
+func init() {
+
+}

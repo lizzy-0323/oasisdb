@@ -7,6 +7,7 @@ import (
 	"sync"
 )
 
+// LSM Tree Engine
 type LSMTree struct {
 	conf         *config.Config
 	dataLock     sync.RWMutex
@@ -14,7 +15,7 @@ type LSMTree struct {
 	walWriter    *wal.WALWriter
 	nodes        [][]*Node
 	destDir      string
-	memConpactCh chan struct{}
+	memCompactCh chan struct{}
 	stopCh       chan struct{}
 }
 
@@ -35,5 +36,13 @@ func (t *LSMTree) Get(key []byte) ([]byte, error) {
 }
 
 func (t *LSMTree) refreshMemTableLocked() error {
+	return nil
+}
+
+func (t *LSMTree) Compact() error {
+	return nil
+}
+
+func (t *LSMTree) Restore() error {
 	return nil
 }
