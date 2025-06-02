@@ -100,36 +100,3 @@ func TestNewNode(t *testing.T) {
 		t.Error("File should be deleted after destruction")
 	}
 }
-
-// func TestNodeIndex(t *testing.T) {
-// 	dir := "testdata"
-// 	conf, err := config.NewConfig(dir)
-// 	assert.NoError(t, err)
-// 	defer os.RemoveAll(dir)
-
-// 	node := NewNode(conf, WithFile("test.sst"), WithLevel(1), WithSeq(2))
-
-// 	level, seq := node.Index()
-// 	if level != 1 || seq != 2 {
-// 		t.Errorf("Expected level 1 and seq 2, got level %d and seq %d", level, seq)
-// 	}
-// }
-
-// func TestNodeStartEndKey(t *testing.T) {
-// 	dir := "testdata"
-// 	conf, err := config.NewConfig(dir)
-// 	assert.NoError(t, err)
-// 	defer os.RemoveAll(dir)
-
-// 	startKey := []byte("start")
-// 	endKey := []byte("end")
-
-// 	node := NewNode(conf, WithStartKey(startKey), WithEndKey(endKey))
-
-// 	if !bytes.Equal(node.Start(), startKey) {
-// 		t.Errorf("Expected start key %s, got %s", startKey, node.Start())
-// 	}
-// 	if !bytes.Equal(node.End(), endKey) {
-// 		t.Errorf("Expected end key %s, got %s", endKey, node.End())
-// 	}
-// }

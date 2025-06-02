@@ -15,12 +15,12 @@ type NodeOption func(*Node)
 // Node in LSM Tree equals a sstable
 type Node struct {
 	conf          *config.Config
-	file          string
-	level         int
-	seq           int32
-	size          uint64 // size of sstable
-	startKey      []byte
-	endKey        []byte
+	file          string            // file name of sstable
+	level         int               // level of sstable
+	seq           int32             // seq of sstable
+	size          uint64            // size of sstable
+	startKey      []byte            // start key of sstable
+	endKey        []byte            // end key of sstable
 	blockToFilter map[uint64][]byte // block offset to filter
 	sstReader     *sstable.SSTableReader
 	indexEntries  []*sstable.IndexEntry
