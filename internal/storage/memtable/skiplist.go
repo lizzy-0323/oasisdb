@@ -24,7 +24,7 @@ type skipListNode struct {
 	next       []*skipListNode
 }
 
-func NewSkipList() *SkipList {
+func NewSkipList() MemTable {
 	return &SkipList{
 		head: &skipListNode{
 			next: make([]*skipListNode, 1), // Initialize with level 1

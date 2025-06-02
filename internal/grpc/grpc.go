@@ -1,1 +1,5 @@
 package grpc
+
+func Interceptor() {
+
+}

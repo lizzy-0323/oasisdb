@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	blockSize      = 4 * 1024   // 4KB
-	footerSize     = 40         // 固定大小的 footer
-	magicNumber    = 0xDB0023DB // SSTable 文件魔数
-	indexEntrySize = 24         // key length(2) + key + offset(8) + size(8)
+	blockSize      = 4 * 1024 // 4KB
+	footerSize     = 40       // 固定大小的 footer
+	magicNumber    = 0xDB0023DB
+	indexEntrySize = 24 // key length(2) + key + offset(8) + size(8)
 )
 
 var (
@@ -33,11 +33,11 @@ type IndexEntry struct {
 type SSTableReader struct {
 	src          *os.File
 	reader       *bufio.Reader
+	indexEntries []IndexEntry // 缓存的索引条目
 	filterOffset uint64       // 布隆过滤器的偏移量
 	filterSize   uint64       // 布隆过滤器的大小
 	indexOffset  uint64       // 索引块的偏移量
 	indexSize    uint64       // 索引块的大小
-	indexEntries []IndexEntry // 缓存的索引条目
 }
 
 func NewSSTableReader(file string, conf *config.Config) (*SSTableReader, error) {
@@ -75,15 +75,27 @@ func NewSSTableReader(file string, conf *config.Config) (*SSTableReader, error) 
 		indexSize:    binary.LittleEndian.Uint64(footer[24:32]),
 	}
 
-	if err := ss.readIndex(); err != nil {
+	if err := ss.ReadIndex(); err != nil {
 		return nil, err
 	}
 
 	return ss, nil
 }
 
-// readIndex read index block to memory
-func (s *SSTableReader) readIndex() error {
+func (s *SSTableReader) ReadBlock(offset, size uint64) ([]byte, error) {
+	if _, err := s.src.Seek(int64(offset), io.SeekStart); err != nil {
+		return nil, err
+	}
+
+	buf := make([]byte, size)
+	if _, err := io.ReadFull(s.src, buf); err != nil {
+		return nil, err
+	}
+	return buf, nil
+}
+
+// ReadIndex read index block to memory
+func (s *SSTableReader) ReadIndex() error {
 	// Reader footer first
 	if s.indexOffset == 0 || s.indexSize == 0 {
 		if err := s.ReadFooter(); err != nil {
@@ -91,13 +103,8 @@ func (s *SSTableReader) readIndex() error {
 		}
 	}
 
-	if _, err := s.src.Seek(int64(s.indexOffset), io.SeekStart); err != nil {
-		return err
-	}
-
-	// read index block
-	indexData := make([]byte, s.indexSize)
-	if _, err := io.ReadFull(s.src, indexData); err != nil {
+	indexBlock, err := s.ReadBlock(s.indexOffset, s.indexSize)
+	if err != nil {
 		return err
 	}
 
@@ -105,18 +112,18 @@ func (s *SSTableReader) readIndex() error {
 	s.indexEntries = make([]IndexEntry, 0)
 	for i := uint64(0); i < s.indexSize; {
 		// 读取 key 长度
-		keySize := binary.LittleEndian.Uint16(indexData[i:])
+		keySize := binary.LittleEndian.Uint16(indexBlock[i:])
 		i += 2
 
 		// 读取 key
 		key := make([]byte, keySize)
-		copy(key, indexData[i:i+uint64(keySize)])
+		copy(key, indexBlock[i:i+uint64(keySize)])
 		i += uint64(keySize)
 
 		// 读取 offset 和 size
-		offset := binary.LittleEndian.Uint64(indexData[i:])
+		offset := binary.LittleEndian.Uint64(indexBlock[i:])
 		i += 8
-		size := binary.LittleEndian.Uint64(indexData[i:])
+		size := binary.LittleEndian.Uint64(indexBlock[i:])
 		i += 8
 
 		s.indexEntries = append(s.indexEntries, IndexEntry{
@@ -129,10 +136,15 @@ func (s *SSTableReader) readIndex() error {
 	return nil
 }
 
-func (s *SSTableReader) readFilterBlock(block []byte) (map[uint64][]byte, error) {
+func (s *SSTableReader) ReadFilter() (map[uint64][]byte, error) {
+	if s.filterOffset == 0 || s.filterSize == 0 {
+		if err := s.ReadFooter(); err != nil {
+			return nil, err
+		}
+	}
 	blockToFilter := make(map[uint64][]byte)
 
-	// TODO: implement bloom filter
+	// implement
 	return blockToFilter, nil
 }
 

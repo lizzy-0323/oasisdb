@@ -11,17 +11,18 @@ import (
 )
 
 type SSTableWriter struct {
-	conf      *config.Config
-	dest      *os.File // ssTable file
-	dataBuf   *bytes.Buffer
-	filterBuf *bytes.Buffer
-	indexBuf  *bytes.Buffer
+	conf          *config.Config
+	dest          *os.File // ssTable file
+	dataBuf       *bytes.Buffer
+	filterBuf     *bytes.Buffer
+	indexBuf      *bytes.Buffer
+	blockToFilter map[uint64][]byte
+	indexEntries  []*IndexEntry
 
-	dataBlock    *Block
-	filterBlock  *Block
-	indexBlock   *Block
-	writer       *bufio.Writer
-	indexEntries []*IndexEntry
+	dataBlock   *Block
+	filterBlock *Block
+	indexBlock  *Block
+	writer      *bufio.Writer
 
 	blockOffset uint64
 }
@@ -33,20 +34,22 @@ func NewSSTableWriter(file string, conf *config.Config) (*SSTableWriter, error) 
 	}
 
 	return &SSTableWriter{
-		conf:         conf,
-		dest:         f,
-		writer:       bufio.NewWriter(f),
-		indexEntries: make([]*IndexEntry, 0),
-		dataBuf:      bytes.NewBuffer(nil),
-		filterBuf:    bytes.NewBuffer(nil),
-		indexBuf:     bytes.NewBuffer(nil),
-		dataBlock:    NewBlock(),
-		filterBlock:  NewBlock(),
-		indexBlock:   NewBlock(),
-		blockOffset:  0,
+		conf:          conf,
+		dest:          f,
+		writer:        bufio.NewWriter(f),
+		dataBuf:       bytes.NewBuffer(nil),
+		filterBuf:     bytes.NewBuffer(nil),
+		indexBuf:      bytes.NewBuffer(nil),
+		indexEntries:  make([]*IndexEntry, 0),
+		blockToFilter: make(map[uint64][]byte),
+		dataBlock:     NewBlock(),
+		filterBlock:   NewBlock(),
+		indexBlock:    NewBlock(),
+		blockOffset:   0,
 	}, nil
 }
 
+// Append a key-value pair to the block
 func (s *SSTableWriter) Append(key, value []byte) error {
 	// write key size (2 bytes)
 	if err := binary.Write(s.writer, binary.LittleEndian, uint16(len(key))); err != nil {
@@ -88,7 +91,7 @@ func (s *SSTableWriter) Finish() error {
 		return string(s.indexEntries[i].MaxKey) < string(s.indexEntries[j].MaxKey)
 	})
 
-	// 2. 写入布隆过滤器（TODO）
+	// 2. TODO: 写入布隆过滤器
 	filterOffset := s.blockOffset
 	filterSize := uint64(0) // 暂时为空
 
@@ -147,9 +150,12 @@ func (s *SSTableWriter) refreshBlock() {
 }
 
 func (s *SSTableWriter) Size() uint64 {
-	return s.blockOffset
+	return uint64(s.dataBuf.Len())
 }
 
 func (s *SSTableWriter) Close() error {
+	s.dataBuf.Reset()
+	s.filterBuf.Reset()
+	s.indexBuf.Reset()
 	return s.dest.Close()
 }
