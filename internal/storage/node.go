@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/sstable"
+	"os"
+	"path"
 )
 
 type NodeOption func(*Node)
@@ -130,6 +132,15 @@ func (n *Node) End() []byte {
 func (n *Node) Index() (level int, seq int32) {
 	level, seq = n.level, n.seq
 	return
+}
+
+func (n *Node) Destroy() {
+	n.sstReader.Close()
+	_ = os.Remove(path.Join(n.conf.Dir, n.file))
+}
+
+func (n *Node) Close() {
+	n.sstReader.Close()
 }
 
 // mayContain using bloom filter to judge whether the key exists
