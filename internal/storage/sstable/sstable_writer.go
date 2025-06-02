@@ -17,13 +17,13 @@ type IndexEntry struct {
 	Size   uint64
 }
 type SSTableWriter struct {
-	conf      *config.Config // config
-	dest      *os.File       // ssTable file
-	dataBuf   *bytes.Buffer  // data block buffer
-	filterBuf *bytes.Buffer  // filter block buffer
-	indexBuf  *bytes.Buffer  // index block buffer
-	// assistBuf     [20]byte          // assist buffer using in index block
+	conf          *config.Config    // config
+	dest          *os.File          // ssTable file
+	dataBuf       *bytes.Buffer     // data block buffer
+	filterBuf     *bytes.Buffer     // filter block buffer
+	indexBuf      *bytes.Buffer     // index block buffer
 	blockToFilter map[uint64][]byte // block offset to filter
+	assistBuf     [20]byte          // assist buffer using in index block
 	indexEntries  []*IndexEntry
 
 	dataBlock   *Block
@@ -31,29 +31,30 @@ type SSTableWriter struct {
 	indexBlock  *Block
 	writer      *bufio.Writer
 
-	blockOffset uint64
-	blockSize   uint64
+	prevBlockOffset uint64
+	prevBlockSize   uint64
 }
 
 func NewSSTableWriter(file string, conf *config.Config) (*SSTableWriter, error) {
-	f, err := os.OpenFile(path.Join(conf.Dir, file), os.O_CREATE|os.O_WRONLY, 0644)
+	dest, err := os.OpenFile(path.Join(conf.Dir, file), os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err
 	}
 
 	return &SSTableWriter{
-		conf:          conf,
-		dest:          f,
-		writer:        bufio.NewWriter(f),
-		dataBuf:       bytes.NewBuffer(nil),
-		filterBuf:     bytes.NewBuffer(nil),
-		indexBuf:      bytes.NewBuffer(nil),
-		indexEntries:  make([]*IndexEntry, 0),
-		blockToFilter: make(map[uint64][]byte),
-		dataBlock:     NewBlock(),
-		filterBlock:   NewBlock(),
-		indexBlock:    NewBlock(),
-		blockOffset:   0,
+		conf:            conf,
+		dest:            dest,
+		writer:          bufio.NewWriter(dest),
+		dataBuf:         bytes.NewBuffer(nil),
+		filterBuf:       bytes.NewBuffer(nil),
+		indexBuf:        bytes.NewBuffer(nil),
+		indexEntries:    make([]*IndexEntry, 0),
+		blockToFilter:   make(map[uint64][]byte),
+		dataBlock:       NewBlock(),
+		filterBlock:     NewBlock(),
+		indexBlock:      NewBlock(),
+		prevBlockOffset: 0,
+		prevBlockSize:   0,
 	}, nil
 }
 
@@ -71,11 +72,8 @@ func (s *SSTableWriter) Append(key, value []byte) error {
 	// add key to bloom filter
 	s.conf.Filter.Add(key)
 
-	// update block offset
-	s.blockOffset += uint64(6 + len(key) + len(value))
-
+	// if dataBlock size is greater than SSTDataBlockSize, refresh block
 	if s.dataBlock.Size() >= s.conf.SSTDataBlockSize {
-		// TODO: flush block
 		s.refreshBlock()
 	}
 
@@ -83,10 +81,14 @@ func (s *SSTableWriter) Append(key, value []byte) error {
 }
 
 func (s *SSTableWriter) insertIndex(key []byte) {
+	n := binary.PutUvarint(s.assistBuf[0:], s.prevBlockOffset)
+	n += binary.PutUvarint(s.assistBuf[n:], s.prevBlockSize)
+	// key: indexKey value: offset and size
+	s.indexBlock.Append(key, s.assistBuf[:n])
 	s.indexEntries = append(s.indexEntries, &IndexEntry{
 		MaxKey: key,
-		Offset: s.blockOffset,
-		Size:   s.blockSize,
+		Offset: s.prevBlockOffset,
+		Size:   s.prevBlockSize,
 	})
 }
 
@@ -98,63 +100,36 @@ func (s *SSTableWriter) Finish() error {
 	})
 
 	// 2. 写入布隆过滤器
-	filterOffset := s.blockOffset
-	filterSize := uint64(0) // 暂时为空
+	_, _ = s.filterBlock.FlushTo(s.filterBuf)
 
 	// 3. 写入索引块
-	indexOffset := s.blockOffset + filterSize
-	var indexSize uint64
-
-	for _, entry := range s.indexEntries {
-		// 写入 key size
-		if err := binary.Write(s.writer, binary.LittleEndian, uint16(len(entry.MaxKey))); err != nil {
-			return err
-		}
-		indexSize += 2
-
-		// 写入 key
-		if _, err := s.writer.Write(entry.MaxKey); err != nil {
-			return err
-		}
-		indexSize += uint64(len(entry.MaxKey))
-
-		// 写入 offset
-		if err := binary.Write(s.writer, binary.LittleEndian, entry.Offset); err != nil {
-			return err
-		}
-		indexSize += 8
-
-		// 写入 size
-		if err := binary.Write(s.writer, binary.LittleEndian, entry.Size); err != nil {
-			return err
-		}
-		indexSize += 8
-	}
+	_, _ = s.indexBlock.FlushTo(s.indexBuf)
 
 	// 4. 写入 footer
-	footer := make([]byte, footerSize)
-	binary.LittleEndian.PutUint64(footer[0:8], filterOffset)
-	binary.LittleEndian.PutUint64(footer[8:16], filterSize)
-	binary.LittleEndian.PutUint64(footer[16:24], indexOffset)
-	binary.LittleEndian.PutUint64(footer[24:32], indexSize)
-	binary.LittleEndian.PutUint32(footer[36:40], magicNumber)
+	// TODO: implement footer
 
-	if _, err := s.writer.Write(footer); err != nil {
-		return err
-	}
-
-	// 5. 刷新缓冲区并关闭文件
-	if err := s.writer.Flush(); err != nil {
-		return err
-	}
+	// 5. write all data to disk
+	_, _ = s.writer.Write(s.dataBuf.Bytes())
+	_, _ = s.writer.Write(s.filterBuf.Bytes())
+	_, _ = s.writer.Write(s.indexBuf.Bytes())
 
 	return s.dest.Close()
 }
 
+// If block size is greater than SSTDataBlockSize, refresh block
 func (s *SSTableWriter) refreshBlock() {
 	if s.conf.Filter.KeyLen() == 0 {
 		return
 	}
+	s.prevBlockOffset += uint64(s.dataBuf.Len())
+
+	// TODO: Add bloom filter
+
+	// reset bloom filter
+	s.conf.Filter.Reset()
+
+	// flush data block
+	s.prevBlockSize, _ = s.dataBlock.FlushTo(s.dataBuf)
 }
 
 func (s *SSTableWriter) Size() uint64 {

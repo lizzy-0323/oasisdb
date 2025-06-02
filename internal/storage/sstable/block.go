@@ -37,13 +37,14 @@ func (b *Block) Append(key, value []byte) error {
 	return nil
 }
 
-func (b *Block) Size() int {
-	return b.record.Len()
+func (b *Block) Size() uint64 {
+	return uint64(b.record.Len())
 }
 
-func (b *Block) FlushTo(dest io.Writer) (int, error) {
+func (b *Block) FlushTo(dest io.Writer) (uint64, error) {
 	defer b.clear()
-	return dest.Write(b.record.Bytes())
+	n, err := dest.Write(b.record.Bytes())
+	return uint64(n), err
 }
 
 func (b *Block) clear() {

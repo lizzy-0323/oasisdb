@@ -23,8 +23,6 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 )
 
-
-
 type SSTableReader struct {
 	src          *os.File
 	reader       *bufio.Reader
@@ -106,16 +104,13 @@ func (s *SSTableReader) ReadIndex() error {
 	// parse index entries
 	s.indexEntries = make([]IndexEntry, 0)
 	for i := uint64(0); i < s.indexSize; {
-		// 读取 key 长度
-		keySize := binary.LittleEndian.Uint16(indexBlock[i:])
+		keyLen := binary.LittleEndian.Uint16(indexBlock[i:])
 		i += 2
 
-		// 读取 key
-		key := make([]byte, keySize)
-		copy(key, indexBlock[i:i+uint64(keySize)])
-		i += uint64(keySize)
+		key := make([]byte, keyLen)
+		copy(key, indexBlock[i:i+uint64(keyLen)])
+		i += uint64(keyLen)
 
-		// 读取 offset 和 size
 		offset := binary.LittleEndian.Uint64(indexBlock[i:])
 		i += 8
 		size := binary.LittleEndian.Uint64(indexBlock[i:])
@@ -152,11 +147,9 @@ func (s *SSTableReader) findBlock(key []byte) (offset, size uint64) {
 		entry := s.indexEntries[mid]
 
 		if bytes.Compare(key, entry.MaxKey) <= 0 {
-			// key <= entry.MaxKey，可能在这个块或之前的块中
 			right = mid - 1
 			offset, size = entry.Offset, entry.Size
 		} else {
-			// key > entry.MaxKey，一定在后面的块中
 			left = mid + 1
 		}
 	}

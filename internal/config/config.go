@@ -15,7 +15,7 @@ type Config struct {
 	// SSTable Config
 	SSTSize          uint64
 	SSTNumPerLevel   uint64
-	SSTDataBlockSize int
+	SSTDataBlockSize uint64
 	SSTFooterSize    uint64
 
 	Filter              filter.Filter
@@ -100,7 +100,7 @@ func WithSSTNumPerLevel(sstNumPerLevel uint64) ConfigOption {
 }
 
 // WithSSTDataBlockSize set sstable data block size
-func WithSSTDataBlockSize(sstDataBlockSize int) ConfigOption {
+func WithSSTDataBlockSize(sstDataBlockSize uint64) ConfigOption {
 	return func(c *Config) {
 		c.SSTDataBlockSize = sstDataBlockSize
 	}
