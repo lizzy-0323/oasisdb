@@ -2,6 +2,7 @@ package sstable
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -71,6 +72,7 @@ func (s *SSTableReader) ReadBlock(offset, size uint64) ([]byte, error) {
 	if _, err := s.src.Seek(int64(offset), io.SeekStart); err != nil {
 		return nil, err
 	}
+	s.reader.Reset(s.src)
 
 	buf := make([]byte, size)
 	if _, err := io.ReadFull(s.src, buf); err != nil {
@@ -89,7 +91,7 @@ func (s *SSTableReader) ReadIndex() ([]*IndexEntry, error) {
 	}
 
 	indexBlock, err := s.ReadBlock(s.indexOffset, s.indexSize)
-	fmt.Println("indexBlock: ", indexBlock)
+	// fmt.Println("indexBlock: ", indexBlock)
 	if err != nil {
 		return nil, err
 	}
@@ -98,44 +100,32 @@ func (s *SSTableReader) ReadIndex() ([]*IndexEntry, error) {
 	var pos uint64
 	for pos < uint64(len(indexBlock)) {
 		// Read key length (uint16)
-		if pos+2 > uint64(len(indexBlock)) {
-			break
-		}
 		keyLen := binary.LittleEndian.Uint16(indexBlock[pos:])
 		pos += 2
-		fmt.Println("keyLen: ", keyLen)
+		// fmt.Println("keyLen: ", keyLen)
 
 		// Read value length (uint32)
-		if pos+4 > uint64(len(indexBlock)) {
-			break
-		}
 		valueLen := binary.LittleEndian.Uint32(indexBlock[pos:])
 		pos += 4
-		fmt.Println("valueLen: ", valueLen)
+		// fmt.Println("valueLen: ", valueLen)
 
 		// Read key
-		if pos+uint64(keyLen) > uint64(len(indexBlock)) {
-			break
-		}
 		key := make([]byte, keyLen)
 		copy(key, indexBlock[pos:pos+uint64(keyLen)])
 		pos += uint64(keyLen)
 
 		// Read value
-		if pos+uint64(valueLen) > uint64(len(indexBlock)) {
-			break
-		}
 		value := indexBlock[pos : pos+uint64(valueLen)]
 		pos += uint64(valueLen)
 
 		// Parse offset and size from value using varint
 		offset, n := binary.Uvarint(value[0:])
-		fmt.Println("offset: ", offset)
+		// fmt.Println("offset: ", offset)
 		if n <= 0 {
 			return nil, fmt.Errorf("failed to read offset from value")
 		}
 		size, m := binary.Uvarint(value[n:])
-		fmt.Println("size: ", size)
+		// fmt.Println("size: ", size)
 		if m <= 0 {
 			return nil, fmt.Errorf("failed to read size from value")
 		}
@@ -197,25 +187,48 @@ func (s *SSTableReader) Size() (uint64, error) {
 	return uint64(stat.Size()), nil
 }
 
-func (s *SSTableReader) ParseBlockData(block []byte) ([]*KV, error) {
+func (s *SSTableReader) ReadRecord(prevKey []byte, buf *bytes.Buffer) ([]byte, []byte, error) {
+	if buf.Len() < 6 { // 2 bytes for keyLen + 4 bytes for valueLen
+		return nil, nil, io.EOF
+	}
+
+	// Read key length (2 bytes)
+	keyLenBytes := buf.Next(2)
+	keyLen := binary.LittleEndian.Uint16(keyLenBytes)
+
+	// Read value length (4 bytes)
+	valueLenBytes := buf.Next(4)
+	valueLen := binary.LittleEndian.Uint32(valueLenBytes)
+
+	if buf.Len() < int(keyLen)+int(valueLen) {
+		return nil, nil, io.EOF
+	}
+
+	// Read key and value
+	key := buf.Next(int(keyLen))
+	value := buf.Next(int(valueLen))
+
+	return key, value, nil
+}
+
+func (s *SSTableReader) ParseDataBlock(block []byte) ([]*KV, error) {
 	var data []*KV
-	for i := uint64(0); i < uint64(len(block)); {
-		keyLen := binary.LittleEndian.Uint16(block[i:])
-		i += 2
-
-		valueLen := binary.LittleEndian.Uint32(block[i:])
-		i += 4
-
-		key := block[i : i+uint64(keyLen)]
-		i += uint64(keyLen)
-
-		value := block[i : i+uint64(valueLen)]
-		i += uint64(valueLen)
+	var prevKey []byte
+	buf := bytes.NewBuffer(block)
+	for {
+		key, value, err := s.ReadRecord(prevKey, buf)
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
 
 		data = append(data, &KV{
 			Key:   key,
 			Value: value,
 		})
+		prevKey = key
 	}
 	return data, nil
 }
@@ -234,7 +247,7 @@ func (s *SSTableReader) ReadData() ([]*KV, error) {
 	}
 
 	// parse all data block content
-	return s.ParseBlockData(dataBlock)
+	return s.ParseDataBlock(dataBlock)
 }
 
 func (s *SSTableReader) ReadFooter() error {

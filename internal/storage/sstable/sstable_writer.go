@@ -64,7 +64,9 @@ func NewSSTableWriter(file string, conf *config.Config) (*SSTableWriter, error) 
 func (s *SSTableWriter) Append(key, value []byte) error {
 	// If open a new data block, insert index first
 	if s.dataBlock.entriesCnt == 0 {
-		s.writeIndex(key)
+		if err := s.writeIndex(key); err != nil {
+			return err
+		}
 	}
 
 	// append to data block
@@ -78,37 +80,40 @@ func (s *SSTableWriter) Append(key, value []byte) error {
 
 	// if dataBlock size is greater than SSTDataBlockSize, refresh block
 	if s.dataBlock.Size() >= s.conf.SSTDataBlockSize {
-		s.refreshBlock()
+		if err := s.refreshBlock(); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-func (s *SSTableWriter) writeIndex(key []byte) {
-	indexKey := utils.GetSeparatorBetween(key, s.prevKey)
+func (s *SSTableWriter) writeIndex(key []byte) error {
+	indexKey := utils.GetSeparatorBetween(s.prevKey, key)
 	// Using assistBuf to store offset and size
 	n := binary.PutUvarint(s.assistBuf[0:], s.prevBlockOffset)
 	n += binary.PutUvarint(s.assistBuf[n:], s.prevBlockSize)
 
-	// fmt.Println("prevBlockOffset: ", s.prevBlockOffset)
-	// fmt.Println("prevBlockSize: ", s.prevBlockSize)
-	// fmt.Println("indexKey: ", indexKey)
-
 	// { key: indexKey value: offset and size }
-	s.indexBlock.Append(indexKey, s.assistBuf[:n])
+	if err := s.indexBlock.Append(indexKey, s.assistBuf[:n]); err != nil {
+		return err
+	}
+
 	s.indexEntries = append(s.indexEntries, &IndexEntry{
 		Key:        indexKey,
 		PrevOffset: s.prevBlockOffset,
 		PrevSize:   s.prevBlockSize,
 	})
+
+	return nil
 }
 
-// Finish all the process, and write all data to disk
 func (s *SSTableWriter) Finish() error {
 	// 1. Handle the last data block if it's not empty
 	if s.dataBlock.entriesCnt > 0 {
-		s.refreshBlock()
-		s.prevBlockOffset = s.Size()
+		if err := s.refreshBlock(); err != nil {
+			return err
+		}
 		s.writeIndex(s.prevKey)
 	}
 
@@ -157,9 +162,9 @@ func (s *SSTableWriter) Finish() error {
 }
 
 // If block size is greater than SSTDataBlockSize, refresh block
-func (s *SSTableWriter) refreshBlock() {
+func (s *SSTableWriter) refreshBlock() error {
 	if s.conf.Filter.KeyLen() == 0 {
-		return
+		return nil
 	}
 
 	s.prevBlockOffset = s.Size()
@@ -167,18 +172,29 @@ func (s *SSTableWriter) refreshBlock() {
 	filterBitmap := s.conf.Filter.Hash()
 	s.blockToFilter[s.prevBlockOffset] = filterBitmap
 	n := binary.PutUvarint(s.assistBuf[0:], s.prevBlockOffset)
-	s.filterBlock.Append(s.assistBuf[:n], filterBitmap)
+	if err := s.filterBlock.Append(s.assistBuf[:n], filterBitmap); err != nil {
+		return err
+	}
 	// reset bloom filter
 	s.conf.Filter.Reset()
 
 	// flush data block, all data blocks are contiguous
-	s.prevBlockSize, _ = s.dataBlock.FlushTo(s.dataBuf)
+	var err error
+	s.prevBlockSize, err = s.dataBlock.FlushTo(s.dataBuf)
+	if err != nil {
+		return err
+	}
+
+	// Reset the data block for next use
+	s.dataBlock = NewBlock()
+	return nil
 }
 
 func (s *SSTableWriter) Size() uint64 {
 	return uint64(s.dataBuf.Len())
 }
 
+// Close flushes and closes the underlying file
 func (s *SSTableWriter) Close() error {
 	s.dataBuf.Reset()
 	s.filterBuf.Reset()

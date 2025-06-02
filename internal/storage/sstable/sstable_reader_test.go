@@ -1,7 +1,6 @@
 package sstable
 
 import (
-	"fmt"
 	"os"
 	"path"
 	"testing"
@@ -60,7 +59,6 @@ func TestSSTableReader_Basic(t *testing.T) {
 	indexEntries, err := reader.ReadIndex()
 	assert.NoError(t, err)
 	assert.NotEmpty(t, indexEntries)
-	fmt.Println("indexEntries len: ", len(indexEntries))
 
 	// Test reading filter block
 	filters, err := reader.ReadFilter()

@@ -2,6 +2,8 @@ package storage
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/sstable"
 	"os"
@@ -16,10 +18,10 @@ type Node struct {
 	file          string
 	level         int
 	seq           int32
-	size          uint64
+	size          uint64 // size of sstable
 	startKey      []byte
 	endKey        []byte
-	blockToFilter map[uint64][]byte
+	blockToFilter map[uint64][]byte // block offset to filter
 	sstReader     *sstable.SSTableReader
 	indexEntries  []*sstable.IndexEntry
 }
@@ -39,6 +41,9 @@ func NewNode(conf *config.Config, opts ...NodeOption) *Node {
 }
 
 func Repair(n *Node) error {
+	if n.file == "" {
+		n.file = "tmp.sst"
+	}
 	if n.sstReader == nil {
 		reader, err := sstable.NewSSTableReader(n.file, n.conf)
 		if err != nil {
@@ -54,6 +59,7 @@ func Repair(n *Node) error {
 			return err
 		}
 		n.indexEntries = indexEntries
+		fmt.Println("len of indexEntries: ", len(n.indexEntries))
 	}
 
 	// Set start and end keys from index entries
@@ -71,41 +77,90 @@ func Repair(n *Node) error {
 		n.blockToFilter = filters
 	}
 
+	return n.Check()
+}
+
+// Check if configs are valid
+func (n *Node) Check() error {
+	if n.file == "" {
+		return errors.New("file is empty")
+	}
+	if n.level < 0 {
+		return errors.New("level is less than 0")
+	}
+	if n.seq < 0 {
+		return errors.New("seq is less than 0")
+	}
+	if n.startKey == nil {
+		return errors.New("startKey is nil")
+	}
+	if n.endKey == nil {
+		return errors.New("endKey is nil")
+	}
+	if n.blockToFilter == nil {
+		return errors.New("blockToFilter is nil")
+	}
+	if n.sstReader == nil {
+		return errors.New("sstReader is nil")
+	}
+	if n.indexEntries == nil {
+		return errors.New("indexEntries is nil")
+	}
 	return nil
 }
 
-func (n *Node) WithFile(file string) *Node {
-	n.file = file
-	return n
+func WithFile(file string) NodeOption {
+	return func(n *Node) {
+		n.file = file
+	}
 }
 
-func (n *Node) WithLevel(level int) *Node {
-	n.level = level
-	return n
+func WithLevel(level int) NodeOption {
+	return func(n *Node) {
+		n.level = level
+	}
 }
 
-func (n *Node) WithSeq(seq int32) *Node {
-	n.seq = seq
-	return n
+func WithSeq(seq int32) NodeOption {
+	return func(n *Node) {
+		n.seq = seq
+	}
 }
 
-func (n *Node) WithSize(size uint64) *Node {
-	n.size = size
-	return n
+func WithSize(size uint64) NodeOption {
+	return func(n *Node) {
+		n.size = size
+	}
 }
 
-func (n *Node) WithStartKey(startKey []byte) *Node {
-	n.startKey = startKey
-	return n
-}
-func (n *Node) WithEndKey(endKey []byte) *Node {
-	n.endKey = endKey
-	return n
+func WithStartKey(startKey []byte) NodeOption {
+	return func(n *Node) {
+		n.startKey = startKey
+	}
 }
 
-func (n *Node) WithBlockToFilter(blockToFilter map[uint64][]byte) *Node {
-	n.blockToFilter = blockToFilter
-	return n
+func WithEndKey(endKey []byte) NodeOption {
+	return func(n *Node) {
+		n.endKey = endKey
+	}
+}
+
+func WithBlockToFilter(blockToFilter map[uint64][]byte) NodeOption {
+	return func(n *Node) {
+		n.blockToFilter = blockToFilter
+	}
+}
+
+func WithSSTableReader(sstReader *sstable.SSTableReader) NodeOption {
+	return func(n *Node) {
+		n.sstReader = sstReader
+	}
+}
+
+func WithIndexEntries(indexEntries []*sstable.IndexEntry) NodeOption {
+	return func(n *Node) {
+		n.indexEntries = indexEntries
+	}
 }
 
 func (n *Node) WithSSTableReader(sstReader *sstable.SSTableReader) *Node {
@@ -146,6 +201,7 @@ func (n *Node) Close() {
 // mayContain using bloom filter to judge whether the key exists
 func (n *Node) mayContain(key []byte) bool {
 	bitmap := n.blockToFilter[n.indexEntries[0].PrevOffset]
+	// fmt.Println("bitmap: ", bitmap)
 	return n.conf.Filter.MayContain(bitmap, key)
 }
 
@@ -165,7 +221,7 @@ func (n *Node) Get(key []byte) ([]byte, bool, error) {
 		return nil, false, err
 	}
 	// 4. parse data block
-	data, err := n.sstReader.ParseBlockData(dataBlock)
+	data, err := n.sstReader.ParseDataBlock(dataBlock)
 	if err != nil {
 		return nil, false, err
 	}
