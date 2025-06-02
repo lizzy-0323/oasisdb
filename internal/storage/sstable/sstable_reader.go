@@ -2,20 +2,13 @@ package sstable
 
 import (
 	"bufio"
-	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"oasisdb/internal/config"
 	"os"
 	"path"
-)
-
-const (
-	blockSize      = 4 * 1024 // 4KB
-	footerSize     = 40       // 固定大小的 footer
-	magicNumber    = 0xDB0023DB
-	indexEntrySize = 24 // key length(2) + key + offset(8) + size(8)
 )
 
 var (
@@ -23,14 +16,18 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 )
 
+type KV struct {
+	Key   []byte
+	Value []byte
+}
 type SSTableReader struct {
+	conf         *config.Config
 	src          *os.File
 	reader       *bufio.Reader
-	indexEntries []IndexEntry // 缓存的索引条目
-	filterOffset uint64       // 布隆过滤器的偏移量
-	filterSize   uint64       // 布隆过滤器的大小
-	indexOffset  uint64       // 索引块的偏移量
-	indexSize    uint64       // 索引块的大小
+	filterOffset uint64 // bloom filter offset
+	filterSize   uint64 // bloom filter size
+	indexOffset  uint64 // index block offset
+	indexSize    uint64 // index block size
 }
 
 func NewSSTableReader(file string, conf *config.Config) (*SSTableReader, error) {
@@ -46,31 +43,26 @@ func NewSSTableReader(file string, conf *config.Config) (*SSTableReader, error) 
 	}
 
 	size := stat.Size()
-	if size < int64(footerSize) {
+	if size < int64(conf.SSTFooterSize) {
 		return nil, ErrInvalidFile
 	}
 
-	footer := make([]byte, footerSize)
-	if _, err := src.ReadAt(footer, size-int64(footerSize)); err != nil {
+	footer := make([]byte, conf.SSTFooterSize)
+	if _, err := src.ReadAt(footer, size-int64(conf.SSTFooterSize)); err != nil {
 		return nil, err
 	}
-	magic := binary.LittleEndian.Uint32(footer[36:])
-	if magic != magicNumber {
-		return nil, ErrInvalidFile
-	}
-
+	// Create reader with correct footer offsets
 	ss := &SSTableReader{
-		src:          src,
-		reader:       bufio.NewReader(src),
-		filterOffset: binary.LittleEndian.Uint64(footer[0:8]),
-		filterSize:   binary.LittleEndian.Uint64(footer[8:16]),
-		indexOffset:  binary.LittleEndian.Uint64(footer[16:24]),
-		indexSize:    binary.LittleEndian.Uint64(footer[24:32]),
+		conf:   conf,
+		src:    src,
+		reader: bufio.NewReader(src),
 	}
 
-	if err := ss.ReadIndex(); err != nil {
-		return nil, err
-	}
+	// Read footer values in same order as writer
+	ss.filterOffset = binary.LittleEndian.Uint64(footer[0:8])
+	ss.filterSize = binary.LittleEndian.Uint64(footer[8:16])
+	ss.indexOffset = binary.LittleEndian.Uint64(footer[16:24])
+	ss.indexSize = binary.LittleEndian.Uint64(footer[24:32])
 
 	return ss, nil
 }
@@ -88,119 +80,108 @@ func (s *SSTableReader) ReadBlock(offset, size uint64) ([]byte, error) {
 }
 
 // ReadIndex read index block to memory
-func (s *SSTableReader) ReadIndex() error {
+func (s *SSTableReader) ReadIndex() ([]*IndexEntry, error) {
 	// Reader footer first
 	if s.indexOffset == 0 || s.indexSize == 0 {
 		if err := s.ReadFooter(); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	indexBlock, err := s.ReadBlock(s.indexOffset, s.indexSize)
+	fmt.Println("indexBlock: ", indexBlock)
 	if err != nil {
-		return err
+		return nil, err
 	}
-
 	// parse index entries
-	s.indexEntries = make([]IndexEntry, 0)
-	for i := uint64(0); i < s.indexSize; {
-		keyLen := binary.LittleEndian.Uint16(indexBlock[i:])
-		i += 2
+	var indexEntries []*IndexEntry
+	var pos uint64
+	for pos < uint64(len(indexBlock)) {
+		// Read key length (uint16)
+		if pos+2 > uint64(len(indexBlock)) {
+			break
+		}
+		keyLen := binary.LittleEndian.Uint16(indexBlock[pos:])
+		pos += 2
+		fmt.Println("keyLen: ", keyLen)
 
+		// Read value length (uint32)
+		if pos+4 > uint64(len(indexBlock)) {
+			break
+		}
+		valueLen := binary.LittleEndian.Uint32(indexBlock[pos:])
+		pos += 4
+		fmt.Println("valueLen: ", valueLen)
+
+		// Read key
+		if pos+uint64(keyLen) > uint64(len(indexBlock)) {
+			break
+		}
 		key := make([]byte, keyLen)
-		copy(key, indexBlock[i:i+uint64(keyLen)])
-		i += uint64(keyLen)
+		copy(key, indexBlock[pos:pos+uint64(keyLen)])
+		pos += uint64(keyLen)
 
-		offset := binary.LittleEndian.Uint64(indexBlock[i:])
-		i += 8
-		size := binary.LittleEndian.Uint64(indexBlock[i:])
-		i += 8
+		// Read value
+		if pos+uint64(valueLen) > uint64(len(indexBlock)) {
+			break
+		}
+		value := indexBlock[pos : pos+uint64(valueLen)]
+		pos += uint64(valueLen)
 
-		s.indexEntries = append(s.indexEntries, IndexEntry{
-			MaxKey: key,
-			Offset: offset,
-			Size:   size,
+		// Parse offset and size from value using varint
+		offset, n := binary.Uvarint(value[0:])
+		fmt.Println("offset: ", offset)
+		if n <= 0 {
+			return nil, fmt.Errorf("failed to read offset from value")
+		}
+		size, m := binary.Uvarint(value[n:])
+		fmt.Println("size: ", size)
+		if m <= 0 {
+			return nil, fmt.Errorf("failed to read size from value")
+		}
+
+		indexEntries = append(indexEntries, &IndexEntry{
+			Key:        key,
+			PrevOffset: offset,
+			PrevSize:   size,
 		})
 	}
 
-	return nil
+	return indexEntries, nil
 }
 
 func (s *SSTableReader) ReadFilter() (map[uint64][]byte, error) {
+	// Reader footer first
 	if s.filterOffset == 0 || s.filterSize == 0 {
 		if err := s.ReadFooter(); err != nil {
 			return nil, err
 		}
 	}
-	blockToFilter := make(map[uint64][]byte)
-
-	// implement
-	return blockToFilter, nil
-}
-
-// findBlock using binary search to find Blocks
-func (s *SSTableReader) findBlock(key []byte) (offset, size uint64) {
-	left, right := 0, len(s.indexEntries)-1
-
-	for left <= right {
-		mid := (left + right) / 2
-		entry := s.indexEntries[mid]
-
-		if bytes.Compare(key, entry.MaxKey) <= 0 {
-			right = mid - 1
-			offset, size = entry.Offset, entry.Size
-		} else {
-			left = mid + 1
-		}
-	}
-
-	return offset, size
-}
-
-// searchBlock 在数据块中搜索 key
-func (s *SSTableReader) searchBlock(key []byte, offset, size uint64) ([]byte, error) {
-	// 读取数据块
-	block := make([]byte, size)
-	if _, err := s.src.ReadAt(block, int64(offset)); err != nil {
+	filterBlock, err := s.ReadBlock(s.filterOffset, s.filterSize)
+	if err != nil {
 		return nil, err
 	}
 
-	// 遍历块中的条目
-	var pos uint64
-	for pos < size {
-		// 读取 key size 和 value size
-		keySize := binary.LittleEndian.Uint16(block[pos:])
-		pos += 2
-		valueSize := binary.LittleEndian.Uint32(block[pos:])
-		pos += 4
+	blockToFilter := make(map[uint64][]byte)
+	for i := uint64(0); i < uint64(len(filterBlock)); {
+		keyLen := binary.LittleEndian.Uint16(filterBlock[i:])
+		i += 2
 
-		// 读取 key
-		entryKey := block[pos : pos+uint64(keySize)]
-		pos += uint64(keySize)
+		valueLen := binary.LittleEndian.Uint32(filterBlock[i:])
+		i += 4
 
-		// 比较 key
-		cmp := bytes.Compare(key, entryKey)
-		if cmp == 0 {
-			// 找到了 key，返回对应的 value
-			value := make([]byte, valueSize)
-			copy(value, block[pos:pos+uint64(valueSize)])
-			return value, nil
-		} else if cmp < 0 {
-			// key 比当前条目的 key 小，由于条目是排序的，所以 key 不在这个块中
-			break
+		key := filterBlock[i : i+uint64(keyLen)]
+		offset, n := binary.Uvarint(key)
+		if n <= 0 {
+			return nil, fmt.Errorf("failed to read offset from key")
 		}
+		i += uint64(keyLen)
 
-		// 移动到下一个条目
-		pos += uint64(valueSize)
+		blockToFilter[offset] = filterBlock[i : i+uint64(valueLen)]
+		i += uint64(valueLen)
 	}
 
-	return nil, ErrKeyNotFound
-}
-
-// mayContain 检查 key 是否可能存在（布隆过滤器）
-func (s *SSTableReader) mayContain(key []byte) bool {
-	// TODO: 实现布隆过滤器
-	return true // 暂时总是返回 true
+	return blockToFilter, nil
 }
 
 func (s *SSTableReader) Close() error {
@@ -209,47 +190,69 @@ func (s *SSTableReader) Close() error {
 }
 
 func (s *SSTableReader) Size() (uint64, error) {
-	if s.indexOffset == 0 {
+	stat, err := s.src.Stat()
+	if err != nil {
+		return 0, err
+	}
+	return uint64(stat.Size()), nil
+}
+
+func (s *SSTableReader) ParseBlockData(block []byte) ([]*KV, error) {
+	var data []*KV
+	for i := uint64(0); i < uint64(len(block)); {
+		keyLen := binary.LittleEndian.Uint16(block[i:])
+		i += 2
+
+		valueLen := binary.LittleEndian.Uint32(block[i:])
+		i += 4
+
+		key := block[i : i+uint64(keyLen)]
+		i += uint64(keyLen)
+
+		value := block[i : i+uint64(valueLen)]
+		i += uint64(valueLen)
+
+		data = append(data, &KV{
+			Key:   key,
+			Value: value,
+		})
+	}
+	return data, nil
+}
+
+func (s *SSTableReader) ReadData() ([]*KV, error) {
+	if s.indexOffset == 0 || s.indexSize == 0 || s.filterOffset == 0 || s.filterSize == 0 {
 		if err := s.ReadFooter(); err != nil {
-			return 0, err
+			return nil, err
 		}
 	}
-	return s.indexOffset + s.indexSize, nil
+
+	// fetch data block from disk
+	dataBlock, err := s.ReadBlock(0, s.filterOffset)
+	if err != nil {
+		return nil, err
+	}
+
+	// parse all data block content
+	return s.ParseBlockData(dataBlock)
 }
 
 func (s *SSTableReader) ReadFooter() error {
 	// find the footer position
-	if _, err := s.src.Seek(-footerSize, io.SeekEnd); err != nil {
+	if _, err := s.src.Seek(-int64(s.conf.SSTFooterSize), io.SeekEnd); err != nil {
 		return err
 	}
 
 	// read footer
-	footer := make([]byte, footerSize)
+	footer := make([]byte, s.conf.SSTFooterSize)
 	if _, err := s.src.Read(footer); err != nil {
 		return err
 	}
 
-	// parse footer
+	// Read footer values in same order as writer
 	s.filterOffset = binary.LittleEndian.Uint64(footer[0:8])
 	s.filterSize = binary.LittleEndian.Uint64(footer[8:16])
 	s.indexOffset = binary.LittleEndian.Uint64(footer[16:24])
 	s.indexSize = binary.LittleEndian.Uint64(footer[24:32])
 	return nil
-}
-
-// Get 根据 key 获取对应的值
-func (s *SSTableReader) Get(key []byte) ([]byte, error) {
-	// 1. 使用布隆过滤器快速判断 key 是否可能存在
-	if !s.mayContain(key) {
-		return nil, ErrKeyNotFound
-	}
-
-	// 2. 二分查找定位数据块
-	blockOffset, blockSize := s.findBlock(key)
-	if blockOffset == 0 {
-		return nil, ErrKeyNotFound
-	}
-
-	// 3. 读取并搜索数据块
-	return s.searchBlock(key, blockOffset, blockSize)
 }
