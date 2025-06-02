@@ -10,13 +10,20 @@ import (
 	"sort"
 )
 
+// IndexEntry 表示索引块中的一个条目
+type IndexEntry struct {
+	MaxKey []byte
+	Offset uint64
+	Size   uint64
+}
 type SSTableWriter struct {
-	conf          *config.Config
-	dest          *os.File // ssTable file
-	dataBuf       *bytes.Buffer
-	filterBuf     *bytes.Buffer
-	indexBuf      *bytes.Buffer
-	blockToFilter map[uint64][]byte
+	conf      *config.Config // config
+	dest      *os.File       // ssTable file
+	dataBuf   *bytes.Buffer  // data block buffer
+	filterBuf *bytes.Buffer  // filter block buffer
+	indexBuf  *bytes.Buffer  // index block buffer
+	// assistBuf     [20]byte          // assist buffer using in index block
+	blockToFilter map[uint64][]byte // block offset to filter
 	indexEntries  []*IndexEntry
 
 	dataBlock   *Block
@@ -25,6 +32,7 @@ type SSTableWriter struct {
 	writer      *bufio.Writer
 
 	blockOffset uint64
+	blockSize   uint64
 }
 
 func NewSSTableWriter(file string, conf *config.Config) (*SSTableWriter, error) {
@@ -51,37 +59,35 @@ func NewSSTableWriter(file string, conf *config.Config) (*SSTableWriter, error) 
 
 // Append a key-value pair to the block
 func (s *SSTableWriter) Append(key, value []byte) error {
-	// write key size (2 bytes)
-	if err := binary.Write(s.writer, binary.LittleEndian, uint16(len(key))); err != nil {
-		return err
+	// If no data block, insert index first
+	if s.dataBlock.entriesCnt == 0 {
+		s.insertIndex(key)
 	}
 
-	// 写入 value size (4 bytes)
-	if err := binary.Write(s.writer, binary.LittleEndian, uint32(len(value))); err != nil {
+	// append to data block
+	if err := s.dataBlock.Append(key, value); err != nil {
 		return err
 	}
+	// add key to bloom filter
+	s.conf.Filter.Add(key)
 
-	// 写入 key
-	if _, err := s.writer.Write(key); err != nil {
-		return err
+	// update block offset
+	s.blockOffset += uint64(6 + len(key) + len(value))
+
+	if s.dataBlock.Size() >= s.conf.SSTDataBlockSize {
+		// TODO: flush block
+		s.refreshBlock()
 	}
 
-	// 写入 value
-	if _, err := s.writer.Write(value); err != nil {
-		return err
-	}
+	return nil
+}
 
-	// 更新索引
+func (s *SSTableWriter) insertIndex(key []byte) {
 	s.indexEntries = append(s.indexEntries, &IndexEntry{
 		MaxKey: key,
 		Offset: s.blockOffset,
-		Size:   uint64(6 + len(key) + len(value)), // 6 = key size(2) + value size(4)
+		Size:   s.blockSize,
 	})
-
-	// 更新偏移量
-	s.blockOffset += uint64(6 + len(key) + len(value))
-
-	return nil
 }
 
 // Finish all the process, and write all data to disk
@@ -91,7 +97,7 @@ func (s *SSTableWriter) Finish() error {
 		return string(s.indexEntries[i].MaxKey) < string(s.indexEntries[j].MaxKey)
 	})
 
-	// 2. TODO: 写入布隆过滤器
+	// 2. 写入布隆过滤器
 	filterOffset := s.blockOffset
 	filterSize := uint64(0) // 暂时为空
 
@@ -146,7 +152,9 @@ func (s *SSTableWriter) Finish() error {
 }
 
 func (s *SSTableWriter) refreshBlock() {
-
+	if s.conf.Filter.KeyLen() == 0 {
+		return
+	}
 }
 
 func (s *SSTableWriter) Size() uint64 {

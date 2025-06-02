@@ -13,22 +13,22 @@ type Config struct {
 	MaxLevel int
 
 	// SSTable Config
-	SSTSize        uint64
-	SSTNumPerLevel uint64
-	SSTBlockSize   uint64
-	SSTFooterSize  uint64
+	SSTSize          uint64
+	SSTNumPerLevel   uint64
+	SSTDataBlockSize int
+	SSTFooterSize    uint64
 
-	filter              filter.Filter
+	Filter              filter.Filter
 	memTableConstructor memtable.MemTableConstructor
 }
 type ConfigOption func(*Config)
 
 const (
-	DefaultMaxLevel       = 7
-	DefaultSSTSize        = 1024 * 1024 // 1MB
-	DefaultSSTNumPerLevel = 10
-	DefaultSSTBlockSize   = 16 * 1024 // 16KB
-	DefaultSSTFooterSize  = 32        // 32B
+	DefaultMaxLevel         = 7
+	DefaultSSTSize          = 1024 * 1024 // 1MB
+	DefaultSSTNumPerLevel   = 10
+	DefaultSSTDataBlockSize = 16 * 1024 // 16KB
+	DefaultSSTFooterSize    = 32        // 32B
 )
 
 func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
@@ -48,14 +48,14 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	if c.SSTNumPerLevel <= 0 {
 		c.SSTNumPerLevel = DefaultSSTNumPerLevel
 	}
-	if c.SSTBlockSize <= 0 {
-		c.SSTBlockSize = DefaultSSTBlockSize
+	if c.SSTDataBlockSize <= 0 {
+		c.SSTDataBlockSize = DefaultSSTDataBlockSize
 	}
 	if c.SSTFooterSize <= 0 {
 		c.SSTFooterSize = DefaultSSTFooterSize
 	}
-	if c.filter == nil {
-		c.filter = filter.NewBloomFilter()
+	if c.Filter == nil {
+		c.Filter = filter.NewBloomFilter(1024)
 	}
 	if c.memTableConstructor == nil {
 		c.memTableConstructor = memtable.NewSkipList
@@ -99,17 +99,17 @@ func WithSSTNumPerLevel(sstNumPerLevel uint64) ConfigOption {
 	}
 }
 
-// WithSSTBlockSize set sstable block size
-func WithSSTBlockSize(sstBlockSize uint64) ConfigOption {
+// WithSSTDataBlockSize set sstable data block size
+func WithSSTDataBlockSize(sstDataBlockSize int) ConfigOption {
 	return func(c *Config) {
-		c.SSTBlockSize = sstBlockSize
+		c.SSTDataBlockSize = sstDataBlockSize
 	}
 }
 
 // WithFilter set sstable filter
 func WithFilter(filter filter.Filter) ConfigOption {
 	return func(c *Config) {
-		c.filter = filter
+		c.Filter = filter
 	}
 }
 

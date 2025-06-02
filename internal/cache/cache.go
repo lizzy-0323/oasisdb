@@ -1,8 +1,6 @@
 package cache
 
-type Cache struct {
-}
-
-func NewCache() *Cache {
-	return &Cache{}
+type Cache interface {
+	Set(key string, value interface{})
+	Get(key string) (interface{}, bool)
 }

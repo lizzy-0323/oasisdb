@@ -23,12 +23,7 @@ var (
 	ErrKeyNotFound = errors.New("key not found")
 )
 
-// IndexEntry 表示索引块中的一个条目
-type IndexEntry struct {
-	MaxKey []byte
-	Offset uint64
-	Size   uint64
-}
+
 
 type SSTableReader struct {
 	src          *os.File
