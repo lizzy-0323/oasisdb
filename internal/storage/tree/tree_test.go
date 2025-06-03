@@ -19,7 +19,7 @@ func setupTestLSMTree(t *testing.T) (*LSMTree, string) {
 	}
 
 	// Create WAL directory
-	if err := os.MkdirAll(path.Join(tmpDir, "walfile"), 0755); err != nil {
+	if err := os.MkdirAll(path.Join(tmpDir, "walfile", "memtable"), 0755); err != nil {
 		t.Fatal(err)
 	}
 

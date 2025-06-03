@@ -26,16 +26,16 @@ func New(db *DB.DB) *gin.Engine {
 
 // Collection请求和响应结构
 type CreateCollectionRequest struct {
-	Name      string            `json:"name"`
-	Dimension int               `json:"dimension"`
-	Metadata  map[string]string `json:"metadata"`
+	Name       string            `json:"name"`
+	Dimension  int               `json:"dimension"`
+	Parameters map[string]string `json:"parameters"`
 }
 
 // Document请求和响应结构
 type UpsertDocumentRequest struct {
-	ID       string                 `json:"id"`
-	Vector   []float32              `json:"vector"`
-	Metadata map[string]interface{} `json:"metadata"`
+	ID         string                 `json:"id"`
+	Vector     []float32              `json:"vector"`
+	Parameters map[string]interface{} `json:"parameters"`
 }
 
 type SearchRequest struct {
@@ -61,7 +61,11 @@ func handleCreateCollection(db *DB.DB) gin.HandlerFunc {
 			return
 		}
 
-		collection, err := db.CreateCollection(req.Name, req.Metadata)
+		collection, err := db.CreateCollection(&DB.CreateCollectionOptions{
+			Name:       req.Name,
+			Dimension:  req.Dimension,
+			Parameters: req.Parameters,
+		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -119,9 +123,10 @@ func handleUpsertDocument(db *DB.DB) gin.HandlerFunc {
 		}
 
 		doc := &DB.Document{
-			ID:       req.ID,
-			Vector:   req.Vector,
-			Metadata: req.Metadata,
+			ID:         req.ID,
+			Vector:     req.Vector,
+			Parameters: req.Parameters,
+			Dimension:  int(len(req.Vector)),
 		}
 
 		if err := db.UpsertDocument(collectionName, doc); err != nil {

@@ -1,0 +1,24 @@
+# release.yml
+# TODO: add release workflow
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: "1.20"
+      - name: Build
+        run: make build
+      - name: Test
+        run: make test
+      - name: Release
+        run: |

@@ -1,7 +1,7 @@
 package index
 
 import (
-	"context"
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 	"io"
@@ -11,10 +11,10 @@ import (
 type hnswIndex struct {
 	index     *hnsw.Index
 	dimension int
-	config    *Config
+	config    *IndexConfig
 }
 
-func newHNSWIndex(config *Config) (VectorIndex, error) {
+func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	if config.Dimension <= 0 {
 		return nil, fmt.Errorf("invalid dimension: %d", config.Dimension)
 	}
@@ -59,14 +59,14 @@ func newHNSWIndex(config *Config) (VectorIndex, error) {
 	}, nil
 }
 
-func (h *hnswIndex) Add(ctx context.Context, id string, vector []float32) error {
+func (h *hnswIndex) Add(id string, vector []float32) error {
 	if len(vector) != h.dimension {
 		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.dimension, len(vector))
 	}
 	return h.index.AddPoint(vector, uint32(stringToID(id)))
 }
 
-func (h *hnswIndex) AddBatch(ctx context.Context, ids []string, vectors [][]float32) error {
+func (h *hnswIndex) AddBatch(ids []string, vectors [][]float32) error {
 	if len(ids) != len(vectors) {
 		return fmt.Errorf("ids and vectors length mismatch")
 	}
@@ -80,20 +80,11 @@ func (h *hnswIndex) AddBatch(ctx context.Context, ids []string, vectors [][]floa
 	return h.index.AddItems(vectors, uint32IDs, 4) // Use 4 goroutines for batch insert
 }
 
-func (h *hnswIndex) Delete(ctx context.Context, id string) error {
+func (h *hnswIndex) Delete(id string) error {
 	return h.index.MarkDeleted(uint32(stringToID(id)))
 }
 
-func (h *hnswIndex) DeleteBatch(ctx context.Context, ids []string) error {
-	for _, id := range ids {
-		if err := h.Delete(ctx, id); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (h *hnswIndex) Search(ctx context.Context, vector []float32, k int) (*SearchResult, error) {
+func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	if len(vector) != h.dimension {
 		return nil, fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.dimension, len(vector))
 	}
@@ -115,19 +106,52 @@ func (h *hnswIndex) Search(ctx context.Context, vector []float32, k int) (*Searc
 	}, nil
 }
 
-func (h *hnswIndex) Load(ctx context.Context, reader io.Reader) error {
+func (h *hnswIndex) Load(reader io.Reader) error {
 	// TODO: implement loading from reader
 	return nil
 }
 
-func (h *hnswIndex) Save(ctx context.Context, writer io.Writer) error {
+func (h *hnswIndex) Save(writer io.Writer) error {
 	// TODO: implement saving to writer
+	return nil
+}
+
+func (h *hnswIndex) ToBytes() []byte {
+	// TODO: implement ToBytes
 	return nil
 }
 
 func (h *hnswIndex) Close() error {
 	h.index.Unload()
 	return nil
+}
+
+func (h *hnswIndex) ApplyOpWithWal(entry *WALEntry) error {
+	switch entry.OpType {
+	case WALOpAddVector:
+		var data AddVectorData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal add vector data: %v", err)
+		}
+		return h.Add(data.ID, data.Vector)
+
+	case WALOpAddBatch:
+		var data AddBatchData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal add batch data: %v", err)
+		}
+		return h.AddBatch(data.IDs, data.Vectors)
+
+	case WALOpDeleteVector:
+		var data DeleteVectorData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal delete vector data: %v", err)
+		}
+		return h.Delete(data.ID)
+
+	default:
+		return fmt.Errorf("unsupported WAL operation type: %s", entry.OpType)
+	}
 }
 
 // stringToID converts a string ID to int64

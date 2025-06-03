@@ -23,7 +23,10 @@ func main() {
 		return
 	}
 	// Create WAL directory if not exists
-	if err := os.MkdirAll(path.Join(conf.Dir, "walfile"), 0755); err != nil {
+	if err := os.MkdirAll(path.Join(conf.Dir, "walfile", "memtable"), 0755); err != nil {
+		logger.Error("Failed to create WAL directory", "error", err)
+	}
+	if err := os.MkdirAll(path.Join(conf.Dir, "walfile", "index"), 0755); err != nil {
 		logger.Error("Failed to create WAL directory", "error", err)
 	}
 	// Create index directory if not exists

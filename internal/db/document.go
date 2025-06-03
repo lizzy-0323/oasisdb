@@ -7,10 +7,10 @@ import (
 
 // Document represents a document
 type Document struct {
-	ID        string         `json:"id"`
-	Vector    []float32      `json:"vector"`
-	Metadata  map[string]any `json:"metadata"`
-	Dimension int            `json:"dimension"`
+	ID         string         `json:"id"`
+	Vector     []float32      `json:"vector"`
+	Parameters map[string]any `json:"parameters"`
+	Dimension  int            `json:"dimension"`
 }
 
 // UpsertDocument inserts or updates a document
