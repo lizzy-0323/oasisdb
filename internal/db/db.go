@@ -1,13 +1,28 @@
 package db
 
-type Config struct {
+import (
+	"oasisdb/internal/config"
+	"oasisdb/internal/storage"
+)
+
+type VectorDB interface {
+	Query()
+	UpSert()
+	GetScalar(key []byte) ([]byte, bool, error)
+	PutScalar(key []byte, value []byte) error
+	DeleteScalar(key []byte) error
 }
 
 type DB struct {
-	Config Config
+	Storage *storage.Storage
 }
 
-func (db *DB) Open(config *Config) error {
+func (db *DB) Open(config *config.Config) error {
+	storage, err := storage.NewStorage(config)
+	if err != nil {
+		return err
+	}
+	db.Storage = storage
 	return nil
 }
 
