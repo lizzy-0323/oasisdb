@@ -7,8 +7,12 @@ clean:
 engine:
 	@echo "Building vector search engine..."
 	cd internal/engine && mkdir -p build && cd build && cmake .. && make
+	
+test:
+	@echo "Running tests..."
+	go test -v ./...
 
-build: engine
+build: engine test
 	@echo "Building oasisdb..."
 	mkdir -p build && go build -o build/oasisdb cmd/main.go
 
