@@ -40,7 +40,7 @@ func TestSSTableWriter_Basic(t *testing.T) {
 	}
 
 	// Finish writing
-	err = writer.Finish()
+	_, _, _, err = writer.Finish()
 	assert.NoError(t, err)
 
 	// Verify file exists
@@ -64,7 +64,7 @@ func TestSSTableWriter_BlockRefresh(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	err = writer.Finish()
+	_, _, _, err = writer.Finish()
 	assert.NoError(t, err)
 
 	// Read and verify the file structure
@@ -95,7 +95,7 @@ func TestSSTableWriter_EmptyWrite(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Finish without writing any data
-	err = writer.Finish()
+	_, _, _, err = writer.Finish()
 	assert.NoError(t, err)
 
 	// Verify file exists and has at least footer size

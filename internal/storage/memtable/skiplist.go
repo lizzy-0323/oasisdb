@@ -119,13 +119,13 @@ func (s *SkipList) Search(key []byte) *skipListNode {
 	return s.searchInternal(key)
 }
 
-func (s *SkipList) Get(key []byte) ([]byte, error) {
+func (s *SkipList) Get(key []byte) ([]byte, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if node := s.searchInternal(key); node != nil {
-		return node.value, nil
+		return node.value, true
 	}
-	return nil, nil
+	return nil, false
 }
 
 func (s *SkipList) All() []*KVPair {

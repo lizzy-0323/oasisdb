@@ -35,7 +35,7 @@ func createTestSSTable(t *testing.T, conf *config.Config) string {
 	}
 
 	// Finish writing
-	err = writer.Finish()
+	_, _, _, err = writer.Finish()
 	assert.NoError(t, err)
 
 	return fileName

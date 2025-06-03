@@ -1,4 +1,4 @@
-package storage
+package tree
 
 import (
 	"bytes"
@@ -232,6 +232,10 @@ func (n *Node) Get(key []byte) ([]byte, bool, error) {
 		}
 	}
 	return nil, false, nil
+}
+
+func (n *Node) GetAll() ([]*sstable.KV, error) {
+	return n.sstReader.ReadData()
 }
 
 func (n *Node) searchIndex(key []byte, start, end int) (*sstable.IndexEntry, bool) {

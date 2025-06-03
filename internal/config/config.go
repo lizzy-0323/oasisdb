@@ -19,7 +19,7 @@ type Config struct {
 	SSTFooterSize    uint64
 
 	Filter              filter.Filter
-	memTableConstructor memtable.MemTableConstructor
+	MemTableConstructor memtable.MemTableConstructor
 }
 type ConfigOption func(*Config)
 
@@ -57,8 +57,8 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	if c.Filter == nil {
 		c.Filter = filter.NewBloomFilter(1024)
 	}
-	if c.memTableConstructor == nil {
-		c.memTableConstructor = memtable.NewSkipList
+	if c.MemTableConstructor == nil {
+		c.MemTableConstructor = memtable.NewSkipList
 	}
 
 	return &c, c.Check()
@@ -116,6 +116,6 @@ func WithFilter(filter filter.Filter) ConfigOption {
 // WithMemTableConstructor set memtable constructor
 func WithMemTableConstructor(constructor memtable.MemTableConstructor) ConfigOption {
 	return func(c *Config) {
-		c.memTableConstructor = constructor
+		c.MemTableConstructor = constructor
 	}
 }

@@ -108,11 +108,12 @@ func (s *SSTableWriter) writeIndex(key []byte) error {
 	return nil
 }
 
-func (s *SSTableWriter) Finish() error {
+// complete sstable process by sstable writer, and return meta data for lsm tree to use
+func (s *SSTableWriter) Finish() (uint64, map[uint64][]byte, []*IndexEntry, error) {
 	// 1. Handle the last data block if it's not empty
 	if s.dataBlock.entriesCnt > 0 {
 		if err := s.refreshBlock(); err != nil {
-			return err
+			return 0, nil, nil, err
 		}
 		s.writeIndex(s.prevKey)
 	}
@@ -120,13 +121,13 @@ func (s *SSTableWriter) Finish() error {
 	// 2. Write bloom filter block
 	filterSize, err := s.filterBlock.FlushTo(s.filterBuf)
 	if err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 
 	// 3. Write index block
 	indexSize, err := s.indexBlock.FlushTo(s.indexBuf)
 	if err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 
 	// 4. Create and write footer
@@ -142,23 +143,26 @@ func (s *SSTableWriter) Finish() error {
 
 	// 5. Write all data to disk
 	if _, err := s.writer.Write(s.dataBuf.Bytes()); err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 	if _, err := s.writer.Write(s.filterBuf.Bytes()); err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 	if _, err := s.writer.Write(s.indexBuf.Bytes()); err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 	if _, err := s.writer.Write(footer); err != nil {
-		return err
+		return 0, nil, nil, err
 	}
 
 	// 6. Flush writer buffer and close file
 	if err := s.writer.Flush(); err != nil {
-		return err
+		return 0, nil, nil, err
 	}
-	return s.dest.Close()
+	if err := s.dest.Close(); err != nil {
+		return 0, nil, nil, err
+	}
+	return s.Size(), s.blockToFilter, s.indexEntries, nil
 }
 
 // If block size is greater than SSTDataBlockSize, refresh block

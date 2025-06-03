@@ -1,4 +1,4 @@
-package storage
+package tree
 
 import (
 	"bytes"
@@ -47,7 +47,8 @@ func TestNewNode(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if err := writer.Finish(); err != nil {
+	_, _, _, err = writer.Finish()
+	if err != nil {
 		t.Fatal(err)
 	}
 
@@ -68,12 +69,12 @@ func TestNewNode(t *testing.T) {
 	// Test Get operation
 	for _, data := range testData {
 		value, exists, err := node.Get(data.key)
+		if err != nil {
+			t.Fatal(err)
+		}
 		// fmt.Println("value: ", value)
 		// fmt.Println("exists: ", exists)
 		// fmt.Println("err: ", err)
-		if err != nil {
-			t.Errorf("Get error: %v", err)
-		}
 		if !exists {
 			t.Errorf("Key %s should exist", data.key)
 		}
@@ -85,7 +86,7 @@ func TestNewNode(t *testing.T) {
 	// Test non-existent key
 	value, exists, err := node.Get([]byte("nonexistent"))
 	if err != nil {
-		t.Errorf("Get error: %v", err)
+		t.Fatal(err)
 	}
 	if exists {
 		t.Error("Key should not exist")
