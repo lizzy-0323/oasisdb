@@ -7,6 +7,8 @@ import (
 	"oasisdb/internal/storage/memtable"
 	"oasisdb/internal/storage/wal"
 	"path"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 )
@@ -46,8 +48,8 @@ func NewLSMTree(conf *config.Config) (*LSMTree, error) {
 	// 3. Start lsm compaction
 	go t.compact()
 
-	// 4. read wal files to restore memtables
-	if err := t.Restore(); err != nil {
+	// 4. Read wal files to restore memtables
+	if err := t.constructMemTables(); err != nil {
 		return nil, err
 	}
 	return t, nil
@@ -93,10 +95,10 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 	// 2. read active memtable
 	value, ok := t.memTable.Get(key)
 	if ok {
-		t.dataLock.Unlock()
+		t.dataLock.RUnlock()
 		return value, true, nil
 	}
-	t.dataLock.Unlock()
+	t.dataLock.RUnlock()
 	// 3. search nodes in level 0
 	var err error
 	t.levelLocks[0].RLock()
@@ -181,4 +183,10 @@ func (t *LSMTree) newWalFile() string {
 
 func (t *LSMTree) sstFile(level int, seq int32) string {
 	return path.Join(t.conf.Dir, "sstfile", fmt.Sprintf("%d_%d.sst", level, seq))
+}
+
+func walFileToMemTableIndex(walFile string) int {
+	rawIndex := strings.Replace(walFile, ".wal", "", -1)
+	index, _ := strconv.Atoi(rawIndex)
+	return index
 }

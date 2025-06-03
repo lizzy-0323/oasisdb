@@ -3,7 +3,6 @@ package tree
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/sstable"
 	"os"
@@ -59,7 +58,6 @@ func Repair(n *Node) error {
 			return err
 		}
 		n.indexEntries = indexEntries
-		fmt.Println("len of indexEntries: ", len(n.indexEntries))
 	}
 
 	// Set start and end keys from index entries
