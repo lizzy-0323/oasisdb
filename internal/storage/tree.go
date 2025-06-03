@@ -12,8 +12,8 @@ import (
 type LSMTree struct {
 	conf           *config.Config
 	dataLock       sync.RWMutex
-	memTable       memtable.MemTable
-	walWriter      *wal.WALWriter
+	memTable       memtable.MemTable // memtable
+	walWriter      *wal.WALWriter    // WAL writer, using in memTable Put
 	nodes          [][]*Node
 	destDir        string
 	levelLocks     []sync.RWMutex // locks used in every level
@@ -28,8 +28,6 @@ func NewLSMTree(conf *config.Config) (*LSMTree, error) {
 	// 1. build LSM Tree
 	t := &LSMTree{
 		conf:           conf,
-		memTable:       memtable.NewSkipList(),
-		walWriter:      wal.NewWALWriter(),
 		stopCh:         make(chan struct{}),
 		memTableIndex:  0,
 		levelToSeq:     make([]atomic.Int32, conf.MaxLevel),
@@ -52,7 +50,12 @@ func NewLSMTree(conf *config.Config) (*LSMTree, error) {
 	return t, nil
 }
 
+// Add a pair of kv to lsm tree, directly write into memtable
 func (t *LSMTree) Put(key, value []byte) error {
+	t.dataLock.Lock()
+	defer t.dataLock.Unlock()
+	// TODO:
+
 	return nil
 }
 
