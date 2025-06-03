@@ -4,24 +4,48 @@ import (
 	"oasisdb/internal/config"
 	"oasisdb/internal/db"
 	"oasisdb/internal/router"
+	"oasisdb/pkg/logger"
+	"os"
+	"path"
 )
 
 func main() {
-	// 初始化配置
+	// Init Config
 	conf, err := config.NewConfig(".")
 	if err != nil {
-		panic(err)
+		logger.Error("Failed to load config", "error", err)
+		return
 	}
 
-	// 初始化数据库
+	// Create data directory if not exists
+	if err := os.MkdirAll(conf.Dir, 0755); err != nil {
+		logger.Error("Failed to create data directory", "error", err)
+		return
+	}
+	// Create WAL directory if not exists
+	if err := os.MkdirAll(path.Join(conf.Dir, "walfile"), 0755); err != nil {
+		logger.Error("Failed to create WAL directory", "error", err)
+	}
+	// Create index directory if not exists
+	if err := os.MkdirAll(path.Join(conf.Dir, "indexfile"), 0755); err != nil {
+		logger.Error("Failed to create index directory", "error", err)
+	}
+	// Create SST directory if not exists
+	if err := os.MkdirAll(path.Join(conf.Dir, "sstfile"), 0755); err != nil {
+		logger.Error("Failed to create SST directory", "error", err)
+	}
+
+	// Init DB
 	db := &db.DB{}
 	if err := db.Open(conf); err != nil {
-		panic(err)
+		logger.Error("Failed to open database", "error", err)
+		return
 	}
+	defer db.Close()
 
-	// 初始化路由
-	r := router.New(db)
+	// Init Router
+	server := router.New(db)
 
-	// 启动服务器
-	r.Run(":8080")
+	// Run Server
+	server.Run(":8080")
 }

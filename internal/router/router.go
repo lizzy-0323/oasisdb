@@ -61,7 +61,7 @@ func handleCreateCollection(db *DB.DB) gin.HandlerFunc {
 			return
 		}
 
-		collection, err := db.CreateCollection(req.Name, req.Dimension, req.Metadata)
+		collection, err := db.CreateCollection(req.Name, req.Metadata)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -112,12 +112,6 @@ func handleListCollections(db *DB.DB) gin.HandlerFunc {
 func handleUpsertDocument(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		var req UpsertDocumentRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
@@ -130,7 +124,7 @@ func handleUpsertDocument(db *DB.DB) gin.HandlerFunc {
 			Metadata: req.Metadata,
 		}
 
-		if err := collection.UpsertDocument(doc); err != nil {
+		if err := db.UpsertDocument(collectionName, doc); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -142,14 +136,9 @@ func handleUpsertDocument(db *DB.DB) gin.HandlerFunc {
 func handleGetDocument(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		docID := c.Param("id")
-		doc, err := collection.GetDocument(docID)
+
+		doc, err := db.GetDocument(collectionName, docID)
 		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
@@ -162,14 +151,8 @@ func handleGetDocument(db *DB.DB) gin.HandlerFunc {
 func handleDeleteDocument(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		docID := c.Param("id")
-		if err := collection.DeleteDocument(docID); err != nil {
+		if err := db.DeleteDocument(collectionName, docID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -181,19 +164,13 @@ func handleDeleteDocument(db *DB.DB) gin.HandlerFunc {
 func handleSearchDocuments(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		var req SearchRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		docs, distances, err := collection.SearchDocuments(req.Vector, req.Limit, req.Filter)
+		docs, distances, err := db.SearchDocuments(collectionName, req.Vector, req.Limit, req.Filter)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -209,19 +186,13 @@ func handleSearchDocuments(db *DB.DB) gin.HandlerFunc {
 func handleBatchUpsertDocuments(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		var req BatchUpsertRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		if err := collection.BatchUpsertDocuments(req.Documents); err != nil {
+		if err := db.BatchUpsertDocuments(collectionName, req.Documents); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -233,19 +204,13 @@ func handleBatchUpsertDocuments(db *DB.DB) gin.HandlerFunc {
 func handleBatchDeleteDocuments(db *DB.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
-		collection, err := db.GetCollection(collectionName)
-		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-
 		var req BatchDeleteRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 
-		if err := collection.BatchDeleteDocuments(req.IDs); err != nil {
+		if err := db.BatchDeleteDocuments(collectionName, req.IDs); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

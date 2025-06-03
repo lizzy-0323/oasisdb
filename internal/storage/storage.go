@@ -5,12 +5,13 @@ import (
 	"oasisdb/internal/storage/tree"
 )
 
-type ScalableStorage interface {
+type ScalarStorage interface {
 	PutScalar(key []byte, value []byte) error
 	GetScalar(key []byte) ([]byte, bool, error)
 	DeleteScalar(key []byte) error
 	Stop()
 }
+
 type Storage struct {
 	lsmTree *tree.LSMTree
 }

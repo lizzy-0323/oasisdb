@@ -5,38 +5,46 @@ import (
 	"fmt"
 )
 
-// UpsertDocument 插入或更新文档
-func (c *Collection) UpsertDocument(doc *Document) error {
-	// 验证向量维度
-	if len(doc.Vector) != c.Dimension {
-		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", c.Dimension, len(doc.Vector))
+// Document represents a document
+type Document struct {
+	ID        string         `json:"id"`
+	Vector    []float32      `json:"vector"`
+	Metadata  map[string]any `json:"metadata"`
+	Dimension int            `json:"dimension"`
+}
+
+// UpsertDocument inserts or updates a document
+func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
+	// validate vector dimension
+	if len(doc.Vector) != doc.Dimension {
+		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", doc.Dimension, len(doc.Vector))
 	}
 
-	// 存储文档元数据
-	docKey := fmt.Sprintf("doc:%s:%s", c.Name, doc.ID)
+	// store document metadata
+	docKey := fmt.Sprintf("doc:%s:%s", collectionName, doc.ID)
 	docData, err := json.Marshal(doc)
 	if err != nil {
 		return err
 	}
-	if err := c.db.Storage.PutScalar([]byte(docKey), docData); err != nil {
+	if err := db.Storage.PutScalar([]byte(docKey), docData); err != nil {
 		return err
 	}
 
-	// 更新向量索引
-	// TODO: 实现向量索引的更新
+	// update vector index
+	// TODO: implement vector index update
 
 	return nil
 }
 
-// GetDocument 获取文档
-func (c *Collection) GetDocument(id string) (*Document, error) {
-	docKey := fmt.Sprintf("doc:%s:%s", c.Name, id)
-	data, exists, err := c.db.Storage.GetScalar([]byte(docKey))
+// GetDocument gets a document
+func (db *DB) GetDocument(collectionName string, id string) (*Document, error) {
+	docKey := fmt.Sprintf("doc:%s:%s", collectionName, id)
+	data, exists, err := db.Storage.GetScalar([]byte(docKey))
 	if err != nil {
 		return nil, err
 	}
 	if !exists {
-		return nil, fmt.Errorf("document %s not found in collection %s", id, c.Name)
+		return nil, fmt.Errorf("document %s not found", id)
 	}
 
 	var doc Document
@@ -46,25 +54,19 @@ func (c *Collection) GetDocument(id string) (*Document, error) {
 	return &doc, nil
 }
 
-// DeleteDocument 删除文档
-func (c *Collection) DeleteDocument(id string) error {
-	docKey := fmt.Sprintf("doc:%s:%s", c.Name, id)
-	if err := c.db.Storage.DeleteScalar([]byte(docKey)); err != nil {
+// DeleteDocument deletes a document
+func (db *DB) DeleteDocument(collectionName string, id string) error {
+	docKey := fmt.Sprintf("doc:%s:%s", collectionName, id)
+	if err := db.Storage.DeleteScalar([]byte(docKey)); err != nil {
 		return err
 	}
 
-	// TODO: 从向量索引中删除向量
-
+	// TODO: delete vector from index
 	return nil
 }
 
-// SearchDocuments 搜索文档
-func (c *Collection) SearchDocuments(queryVector []float32, limit int, filter map[string]interface{}) ([]*Document, []float32, error) {
-	// 验证查询向量维度
-	if len(queryVector) != c.Dimension {
-		return nil, nil, fmt.Errorf("query vector dimension mismatch: expected %d, got %d", c.Dimension, len(queryVector))
-	}
-
+// SearchDocuments searches documents
+func (db *DB) SearchDocuments(collectionName string, queryVector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
 	// TODO: 实现向量搜索
 	// 1. 使用HNSW/IVF索引进行向量搜索
 	// 2. 获取最近邻的文档ID和距离
@@ -75,7 +77,7 @@ func (c *Collection) SearchDocuments(queryVector []float32, limit int, filter ma
 }
 
 // BatchUpsertDocuments 批量插入或更新文档
-func (c *Collection) BatchUpsertDocuments(docs []*Document) error {
+func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) error {
 	// TODO: 实现批量插入
 	// 1. 批量验证向量维度
 	// 2. 批量存储文档元数据
@@ -84,7 +86,7 @@ func (c *Collection) BatchUpsertDocuments(docs []*Document) error {
 }
 
 // BatchDeleteDocuments 批量删除文档
-func (c *Collection) BatchDeleteDocuments(ids []string) error {
+func (db *DB) BatchDeleteDocuments(collectionName string, ids []string) error {
 	// TODO: 实现批量删除
 	// 1. 批量删除文档元数据
 	// 2. 批量从向量索引中删除向量

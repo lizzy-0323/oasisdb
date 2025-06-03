@@ -2,30 +2,34 @@ package db
 
 import (
 	"oasisdb/internal/config"
+	"oasisdb/internal/index"
 	"oasisdb/internal/storage"
 )
 
-type VectorDB interface {
-	Query()
-	UpSert()
-	GetScalar(key []byte) ([]byte, bool, error)
-	PutScalar(key []byte, value []byte) error
-	DeleteScalar(key []byte) error
-}
-
 type DB struct {
-	Storage *storage.Storage
+	Storage      storage.ScalarStorage
+	IndexFactory *index.Factory
 }
 
-func (db *DB) Open(config *config.Config) error {
-	storage, err := storage.NewStorage(config)
+func (db *DB) Open(conf *config.Config) error {
+	storage, err := storage.NewStorage(conf)
 	if err != nil {
 		return err
 	}
 	db.Storage = storage
+	indexFactory, err := index.NewFactory(conf)
+	if err != nil {
+		return err
+	}
+	// load indexs
+	// if err := indexFactory.LoadIndexs(); err != nil {
+	// 	return err
+	// }
+	db.IndexFactory = indexFactory
 	return nil
 }
 
-func init() {
-
+func (db *DB) Close() {
+	db.Storage.Stop()
+	db.IndexFactory.Close()
 }
