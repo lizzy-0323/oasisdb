@@ -65,7 +65,16 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 	return nil
 }
 
-// SearchDocuments searches documents
+// SearchVectors returns top-k vector ids and distances
+func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) {
+	// TODO: 实现向量搜索
+	// 1. 使用HNSW/IVF索引进行向量搜索
+	// 2. 获取最近邻的文档ID和距离
+	// 3. 应用过滤条件
+	return nil, nil, nil
+}
+
+// SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, queryVector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
 	// TODO: 实现向量搜索
 	// 1. 使用HNSW/IVF索引进行向量搜索

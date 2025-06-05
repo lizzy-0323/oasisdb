@@ -3,7 +3,7 @@ package main
 import (
 	"oasisdb/internal/config"
 	"oasisdb/internal/db"
-	"oasisdb/internal/router"
+	"oasisdb/internal/server"
 	"oasisdb/pkg/logger"
 	"os"
 	"path"
@@ -46,8 +46,8 @@ func main() {
 	}
 	defer db.Close()
 
-	// Init Router
-	server := router.New(db)
+	// Init Server
+	server := server.New(db)
 
 	// Run Server
 	server.Run(":8080")

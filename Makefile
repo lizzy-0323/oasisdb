@@ -1,4 +1,4 @@
-all: clean build
+all: clean build test
 
 clean:
 	@echo "Cleaning..."
@@ -12,7 +12,7 @@ test:
 	@echo "Running tests..."
 	go test -v ./...
 
-build: engine test
+build: engine
 	@echo "Building oasisdb..."
 	mkdir -p build && go build -o build/oasisdb cmd/main.go
 
