@@ -22,9 +22,9 @@ func (db *DB) Open(conf *config.Config) error {
 		return err
 	}
 	// load indexs
-	// if err := indexFactory.LoadIndexs(); err != nil {
-	// 	return err
-	// }
+	if err := indexFactory.LoadIndexs(); err != nil {
+		return err
+	}
 	db.IndexFactory = indexFactory
 	return nil
 }

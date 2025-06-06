@@ -9,11 +9,10 @@ import (
 
 // Collection represents a collection of vectors
 type Collection struct {
-	Name      string             `json:"name"`      // collection name
-	Metadata  map[string]string  `json:"metadata"`  // collection metadata
-	Dimension int                `json:"dimension"` // vector dimension
-	IndexType string             `json:"indexType"` // index type (e.g., "hnsw")
-	IndexConf *index.IndexConfig `json:"indexConf"` // index configuration
+	Name      string            `json:"name"`      // collection name
+	Metadata  map[string]string `json:"metadata"`  // collection metadata
+	Dimension int               `json:"dimension"` // vector dimension
+	IndexType string            `json:"indexType"` // index type (e.g., "hnsw")
 }
 
 // CreateCollectionOptions represents options for creating a collection
@@ -22,6 +21,15 @@ type CreateCollectionOptions struct {
 	Parameters map[string]string `json:"parameters"`
 	Dimension  int               `json:"dimension"`
 	IndexType  string            `json:"indexType"` // e.g., "hnsw"
+}
+
+func NewCollection(opts *CreateCollectionOptions) *Collection {
+	return &Collection{
+		Name:      opts.Name,
+		Metadata:  opts.Parameters,
+		Dimension: opts.Dimension,
+		IndexType: opts.IndexType,
+	}
 }
 
 // CreateCollection creates a new collection
@@ -63,13 +71,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 	}
 
 	// Create collection
-	collection := &Collection{
-		Name:      opts.Name,
-		Metadata:  opts.Parameters,
-		Dimension: opts.Dimension,
-		IndexType: opts.IndexType,
-		IndexConf: indexConf,
-	}
+	collection := NewCollection(opts)
 
 	// Save collection metadata
 	data, err := json.Marshal(collection)
@@ -118,14 +120,18 @@ func (db *DB) DeleteCollection(name string) error {
 
 	// Delete collection metadata
 	key := fmt.Sprintf("collection:%s", name)
-	if err := db.Storage.DeleteScalar([]byte(key)); err != nil {
-		return fmt.Errorf("failed to delete collection metadata: %v", err)
+	if _, exists, err := db.Storage.GetScalar([]byte(key)); err != nil {
+		return fmt.Errorf("failed to get collection: %v", err)
+	} else if !exists {
+		return fmt.Errorf("collection %s not found", name)
 	}
-
+	if err := db.Storage.DeleteScalar([]byte(key)); err != nil {
+		return fmt.Errorf("failed to delete collection: %v", err)
+	}
 	return nil
 }
 
-// ListCollections lists all collections
+// TODO: ListCollections lists all collections
 func (db *DB) ListCollections() ([]*Collection, error) {
 	return nil, nil
 }

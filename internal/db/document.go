@@ -30,8 +30,10 @@ func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
 		return err
 	}
 
-	// update vector index
-	// TODO: implement vector index update
+	// upsert vector index
+	if err := db.IndexFactory.AddVector(collectionName, doc.ID, doc.Vector); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -61,43 +63,109 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 		return err
 	}
 
-	// TODO: delete vector from index
+	if err := db.IndexFactory.DeleteVector(collectionName, id); err != nil {
+		return err
+	}
 	return nil
 }
 
 // SearchVectors returns top-k vector ids and distances
 func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) {
-	// TODO: 实现向量搜索
-	// 1. 使用HNSW/IVF索引进行向量搜索
-	// 2. 获取最近邻的文档ID和距离
-	// 3. 应用过滤条件
-	return nil, nil, nil
+	index, err := db.IndexFactory.GetIndex(collectionName)
+	if err != nil {
+		return nil, nil, err
+	}
+	searchResult, err := index.Search(queryVector, k)
+	if err != nil {
+		return nil, nil, err
+	}
+	return searchResult.IDs, searchResult.Distances, nil
 }
 
 // SearchDocuments returns top-k documents and distances
-func (db *DB) SearchDocuments(collectionName string, queryVector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
-	// TODO: 实现向量搜索
+func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
 	// 1. 使用HNSW/IVF索引进行向量搜索
-	// 2. 获取最近邻的文档ID和距离
-	// 3. 根据文档ID获取完整的文档信息
-	// 4. 应用过滤条件
+	index, err := db.IndexFactory.GetIndex(collectionName)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return nil, nil, nil
+	// 2. 获取最近邻的文档ID和距离
+	searchResult, err := index.Search(vector, k)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// 3. 根据文档ID获取完整的文档信息
+	docs := make([]*Document, len(searchResult.IDs))
+	for i, id := range searchResult.IDs {
+		doc, err := db.GetDocument(collectionName, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		docs[i] = doc
+	}
+
+	// 4. TODO: 应用过滤条件
+	return docs, searchResult.Distances, nil
 }
 
 // BatchUpsertDocuments 批量插入或更新文档
 func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) error {
-	// TODO: 实现批量插入
-	// 1. 批量验证向量维度
-	// 2. 批量存储文档元数据
-	// 3. 批量更新向量索引
+	// Get collection to validate dimension
+	collection, err := db.GetCollection(collectionName)
+	if err != nil {
+		return fmt.Errorf("failed to get collection: %v", err)
+	}
+
+	// Prepare batch data
+	docKeys := make([][]byte, len(docs))
+	docValues := make([][]byte, len(docs))
+	ids := make([]string, len(docs))
+	vectors := make([][]float32, len(docs))
+
+	// Validate and prepare data
+	for i, doc := range docs {
+		// Validate vector dimension
+		if len(doc.Vector) != collection.Dimension {
+			return fmt.Errorf("vector dimension mismatch for document %s: expected %d, got %d",
+				doc.ID, collection.Dimension, len(doc.Vector))
+		}
+		doc.Dimension = collection.Dimension
+
+		// Prepare document key and value
+		docKey := fmt.Sprintf("doc:%s:%s", collectionName, doc.ID)
+		docData, err := json.Marshal(doc)
+		if err != nil {
+			return fmt.Errorf("failed to marshal document %s: %v", doc.ID, err)
+		}
+
+		docKeys[i] = []byte(docKey)
+		docValues[i] = docData
+		ids[i] = doc.ID
+		vectors[i] = doc.Vector
+	}
+
+	// Batch store document metadata
+	if err := db.Storage.BatchPutScalar(docKeys, docValues); err != nil {
+		return fmt.Errorf("failed to batch store documents: %v", err)
+	}
+
+	// Batch update vector index
+	if err := db.IndexFactory.AddVectorBatch(collectionName, ids, vectors); err != nil {
+		return fmt.Errorf("failed to batch update vector index: %v", err)
+	}
+
 	return nil
 }
 
-// BatchDeleteDocuments 批量删除文档
+// TODO: BatchDeleteDocuments 批量删除文档
 func (db *DB) BatchDeleteDocuments(collectionName string, ids []string) error {
-	// TODO: 实现批量删除
 	// 1. 批量删除文档元数据
-	// 2. 批量从向量索引中删除向量
+	for _, id := range ids {
+		if err := db.DeleteDocument(collectionName, id); err != nil {
+			return err
+		}
+	}
 	return nil
 }

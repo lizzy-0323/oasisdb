@@ -388,6 +388,12 @@ func (f *Factory) monitorIndexSave() error {
 				logger.Error("Failed to save index", "error", err)
 				continue
 			}
+			logger.Info("Saved index to disk", "collection", indexItem.collectionName)
+			// delete WAL file
+			walPath := f.newWalFile(stringToInt32(indexItem.collectionName))
+			if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
+				logger.Error("Failed to delete WAL file", "error", err)
+			}
 		case <-f.stopCh:
 			return nil
 		}
