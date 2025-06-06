@@ -6,7 +6,7 @@ OasisDB 是一个高性能的向量数据库，设计理念是简单易用。通
 
 ## 功能
 
-1. 多种向量索引：HNSW, IVF
+1. 多种向量索引：HNSW(hnswlib), IVF(faiss)
 2. 简单易用：单机部署和 RESTful API
 
 ## 架构

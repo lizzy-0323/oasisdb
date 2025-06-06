@@ -6,8 +6,8 @@ OasisDB is a high-performance vector database designed for simplicity and ease o
 
 ## Features
 
-1. Multiple vector index: HNSW, IVF
-2. Easy to use: single mode deployment and RESTful api
+1. Multiple vector index: HNSW(hnswlib), IVF(faiss)
+2. Easy to use: standalone deployment and RESTful API
 
 ## Architecture
 
