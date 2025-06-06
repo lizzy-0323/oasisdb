@@ -178,7 +178,7 @@ func (t *LSMTree) newMemTable() (memtable.MemTable, error) {
 }
 
 func (t *LSMTree) newWalFile() string {
-	return path.Join(t.conf.Dir, "walfile", fmt.Sprintf("%d.wal", t.memTableIndex))
+	return path.Join(t.conf.Dir, "walfile", "memtable", fmt.Sprintf("%d.wal", t.memTableIndex))
 }
 
 func (t *LSMTree) sstFile(level int, seq int32) string {
