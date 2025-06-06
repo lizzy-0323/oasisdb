@@ -2,16 +2,17 @@
 
 English | [简体中文](readmd-CN.md)
 
-OasisDB is a vector database, it is simple and very easy to use.
-It support single mode deployment and RESTful api, can enable your application to vector search.
+OasisDB is a high-performance vector database designed for simplicity and ease of use. It enables efficient vector similarity search for your applications through both standalone deployment and RESTful API interfaces.
 
 ## Features
 
-1. Multiple vector index: HNSW, IVF
-2. Easy to use: single mode deployment and RESTful api
+1. Multiple vector index: HNSW(hnswlib), IVF(faiss)
+2. Easy to use: standalone deployment and RESTful API
 
 ## Architecture
 
+## Quick Start
+
 ## License
 
-[MIT](LICENCE)
+[MIT](LICENSE)
