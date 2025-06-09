@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"fmt"
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/tree"
+	"oasisdb/pkg/errors"
 )
 
 type ScalarStorage interface {
@@ -40,7 +40,7 @@ func (s *Storage) DeleteScalar(key []byte) error {
 
 func (s *Storage) BatchPutScalar(keys [][]byte, values [][]byte) error {
 	if len(keys) != len(values) {
-		return fmt.Errorf("keys and values length mismatch")
+		return errors.ErrMisMatchKeysAndValues
 	}
 	for i := range keys {
 		if err := s.lsmTree.Put(keys[i], values[i]); err != nil {

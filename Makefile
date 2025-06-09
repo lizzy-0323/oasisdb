@@ -2,7 +2,7 @@ all: clean build test
 
 clean:
 	@echo "Cleaning..."
-	rm -rf build/oasisdb
+	rm -rf bin/oasisdb
 
 engine:
 	@echo "Building vector search engine..."
@@ -14,6 +14,6 @@ test:
 
 build: engine
 	@echo "Building oasisdb..."
-	mkdir -p build && go build -o build/oasisdb cmd/main.go
+	mkdir -p bin && go build -o bin/oasisdb cmd/main.go
 
 .PHONY: all clean engine build

@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"oasisdb/pkg/errors"
 )
 
 // Document represents a document
@@ -31,7 +32,7 @@ func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
 	}
 
 	// upsert vector index
-	if err := db.IndexFactory.AddVector(collectionName, doc.ID, doc.Vector); err != nil {
+	if err := db.IndexManager.AddVector(collectionName, doc.ID, doc.Vector); err != nil {
 		return err
 	}
 
@@ -46,7 +47,7 @@ func (db *DB) GetDocument(collectionName string, id string) (*Document, error) {
 		return nil, err
 	}
 	if !exists {
-		return nil, fmt.Errorf("document %s not found", id)
+		return nil, errors.ErrDocumentNotFound
 	}
 
 	var doc Document
@@ -63,7 +64,7 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 		return err
 	}
 
-	if err := db.IndexFactory.DeleteVector(collectionName, id); err != nil {
+	if err := db.IndexManager.DeleteVector(collectionName, id); err != nil {
 		return err
 	}
 	return nil
@@ -71,7 +72,7 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 
 // SearchVectors returns top-k vector ids and distances
 func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) {
-	index, err := db.IndexFactory.GetIndex(collectionName)
+	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -84,19 +85,19 @@ func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int)
 
 // SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
-	// 1. 使用HNSW/IVF索引进行向量搜索
-	index, err := db.IndexFactory.GetIndex(collectionName)
+	// 1. get index
+	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 2. 获取最近邻的文档ID和距离
+	// 2. search using hnsw index
 	searchResult, err := index.Search(vector, k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 3. 根据文档ID获取完整的文档信息
+	// 3. get documents by ids
 	docs := make([]*Document, len(searchResult.IDs))
 	for i, id := range searchResult.IDs {
 		doc, err := db.GetDocument(collectionName, id)
@@ -106,7 +107,7 @@ func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, fi
 		docs[i] = doc
 	}
 
-	// 4. TODO: 应用过滤条件
+	// 4. return documents
 	return docs, searchResult.Distances, nil
 }
 
@@ -152,7 +153,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 	}
 
 	// Batch update vector index
-	if err := db.IndexFactory.AddVectorBatch(collectionName, ids, vectors); err != nil {
+	if err := db.IndexManager.AddVectorBatch(collectionName, ids, vectors); err != nil {
 		return fmt.Errorf("failed to batch update vector index: %v", err)
 	}
 

@@ -10,12 +10,12 @@ import (
 	"path"
 )
 
-// IndexEntry 表示索引块中的一个条目
 type IndexEntry struct {
 	Key        []byte
 	PrevOffset uint64
 	PrevSize   uint64
 }
+
 type SSTableWriter struct {
 	conf          *config.Config    // config
 	dest          *os.File          // ssTable file

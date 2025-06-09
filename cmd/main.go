@@ -2,11 +2,9 @@ package main
 
 import (
 	"oasisdb/internal/config"
-	"oasisdb/internal/db"
+	dblib "oasisdb/internal/db"
 	"oasisdb/internal/server"
 	"oasisdb/pkg/logger"
-	"os"
-	"path"
 )
 
 func main() {
@@ -17,30 +15,13 @@ func main() {
 		return
 	}
 
-	// Create data directory if not exists
-	if err := os.MkdirAll(conf.Dir, 0755); err != nil {
-		logger.Error("Failed to create data directory", "error", err)
+	// Init DB
+	db, err := dblib.New(conf)
+	if err != nil {
+		logger.Error("Failed to init database", "error", err)
 		return
 	}
-	// Create WAL directory if not exists
-	if err := os.MkdirAll(path.Join(conf.Dir, "walfile", "memtable"), 0755); err != nil {
-		logger.Error("Failed to create WAL directory", "error", err)
-	}
-	if err := os.MkdirAll(path.Join(conf.Dir, "walfile", "index"), 0755); err != nil {
-		logger.Error("Failed to create WAL directory", "error", err)
-	}
-	// Create index directory if not exists
-	if err := os.MkdirAll(path.Join(conf.Dir, "indexfile"), 0755); err != nil {
-		logger.Error("Failed to create index directory", "error", err)
-	}
-	// Create SST directory if not exists
-	if err := os.MkdirAll(path.Join(conf.Dir, "sstfile"), 0755); err != nil {
-		logger.Error("Failed to create SST directory", "error", err)
-	}
-
-	// Init DB
-	db := &db.DB{}
-	if err := db.Open(conf); err != nil {
+	if err := db.Open(); err != nil {
 		logger.Error("Failed to open database", "error", err)
 		return
 	}

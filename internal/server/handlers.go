@@ -3,6 +3,7 @@ package server
 import (
 	"net/http"
 	DB "oasisdb/internal/db"
+	"oasisdb/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -13,7 +14,7 @@ func (s *Server) handleHealthCheck() gin.HandlerFunc {
 	}
 }
 
-func (s *Server) handleSearch() gin.HandlerFunc {
+func (s *Server) handleSearchVectors() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
 		var req SearchVectorRequest
@@ -35,7 +36,6 @@ func (s *Server) handleSearch() gin.HandlerFunc {
 	}
 }
 
-// Collection相关处理函数
 func (s *Server) handleCreateCollection() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req CreateCollectionRequest
@@ -46,15 +46,24 @@ func (s *Server) handleCreateCollection() gin.HandlerFunc {
 
 		collection, err := s.db.CreateCollection(&DB.CreateCollectionOptions{
 			Name:       req.Name,
-			Dimension:  req.Dimension,
+			Dimension:  int(req.Dimension),
 			Parameters: req.Parameters,
+			IndexType:  req.IndexType,
 		})
+		if err == errors.ErrCollectionExists {
+			c.JSON(http.StatusOK, gin.H{"message": err.Error()})
+			return
+		}
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusCreated, collection)
+		c.JSON(http.StatusOK, gin.H{
+			"name":      collection.Name,
+			"dimension": collection.Dimension,
+			"metadata":  collection.Metadata,
+		})
 	}
 }
 
@@ -67,7 +76,11 @@ func (s *Server) handleGetCollection() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, collection)
+		c.JSON(http.StatusOK, gin.H{
+			"name":      collection.Name,
+			"dimension": collection.Dimension,
+			"metadata":  collection.Metadata,
+		})
 	}
 }
 
@@ -79,10 +92,11 @@ func (s *Server) handleDeleteCollection() gin.HandlerFunc {
 			return
 		}
 
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusOK)
 	}
 }
 
+// TODO: ListCollections
 func (s *Server) handleListCollections() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collections, err := s.db.ListCollections()
@@ -95,7 +109,6 @@ func (s *Server) handleListCollections() gin.HandlerFunc {
 	}
 }
 
-// Document相关处理函数
 func (s *Server) handleUpsertDocument() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
@@ -117,7 +130,12 @@ func (s *Server) handleUpsertDocument() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, doc)
+		c.JSON(http.StatusOK, gin.H{
+			"id":         doc.ID,
+			"vector":     doc.Vector,
+			"parameters": doc.Parameters,
+			"dimension":  doc.Dimension,
+		})
 	}
 }
 
@@ -132,7 +150,12 @@ func (s *Server) handleGetDocument() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, doc)
+		c.JSON(http.StatusOK, gin.H{
+			"id":         doc.ID,
+			"vector":     doc.Vector,
+			"parameters": doc.Parameters,
+			"dimension":  doc.Dimension,
+		})
 	}
 }
 
@@ -145,7 +168,7 @@ func (s *Server) handleDeleteDocument() gin.HandlerFunc {
 			return
 		}
 
-		c.Status(http.StatusNoContent)
+		c.Status(http.StatusOK)
 	}
 }
 
@@ -186,24 +209,6 @@ func (s *Server) handleBatchUpsertDocuments() gin.HandlerFunc {
 		}
 
 		c.Status(http.StatusOK)
-	}
-}
-
-func (s *Server) handleBatchDeleteDocuments() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		collectionName := c.Param("name")
-		var req BatchDeleteRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-
-		if err := s.db.BatchDeleteDocuments(collectionName, req.IDs); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		c.Status(http.StatusNoContent)
 	}
 }
 

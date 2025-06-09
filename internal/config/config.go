@@ -5,6 +5,7 @@ import (
 	"oasisdb/internal/storage/filter"
 	"oasisdb/internal/storage/memtable"
 	"os"
+	"path"
 	"strings"
 )
 
@@ -74,7 +75,23 @@ func (c *Config) Check() error {
 			return err
 		}
 	}
-	// TODO: Add wal check
+
+	// Create WAL directory if not exists
+	if err := os.MkdirAll(path.Join(c.Dir, "walfile", "memtable"), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(path.Join(c.Dir, "walfile", "index"), 0755); err != nil {
+		return err
+	}
+	// Create index directory if not exists
+	if err := os.MkdirAll(path.Join(c.Dir, "indexfile"), 0755); err != nil {
+		return err
+	}
+	// Create SST directory if not exists
+	if err := os.MkdirAll(path.Join(c.Dir, "sstfile"), 0755); err != nil {
+		return err
+	}
+
 	return nil
 }
 

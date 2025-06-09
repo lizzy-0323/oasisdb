@@ -37,8 +37,8 @@ HNSWIndex *hnsw_load_index(const char *path, size_t dim, const char spaceType);
 // Mark an element as deleted
 int hnsw_mark_deleted(HNSWIndex *index, size_t label);
 
-// Get data by label
-void get_data_by_label(HNSWIndex *index, size_t label, float *data);
+// Returns 0 on success, -1 if label not found or on error
+int get_data_by_label(HNSWIndex *index, size_t label, float *data);
 
 // Get max elements
 int get_max_elements(HNSWIndex *index);

@@ -99,6 +99,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		return value, true, nil
 	}
 	t.dataLock.RUnlock()
+
 	// 3. search nodes in level 0
 	var err error
 	t.levelLocks[0].RLock()
@@ -113,6 +114,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		}
 	}
 	t.levelLocks[0].RUnlock()
+
 	// 4. search nodes in other levels
 	for level := 1; level < len(t.nodes); level++ {
 		t.levelLocks[level].RLock()
