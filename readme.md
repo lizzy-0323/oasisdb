@@ -11,7 +11,14 @@ OasisDB is a high-performance vector database designed for simplicity and ease o
 
 ## Architecture
 
+![Architecture](./docs/images/architecture.png)
+
 ## Quick Start
+
+```bash
+make build
+./bin/oasisdb
+```
 
 ## License
 

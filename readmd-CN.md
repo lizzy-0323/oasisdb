@@ -11,7 +11,14 @@ OasisDB 是一个高性能的向量数据库，设计理念是简单易用。通
 
 ## 架构
 
+![架构](./docs/images/architecture.png)
+
 ## 快速开始
+
+```bash
+make build
+./bin/oasisdb
+```
 
 ## 许可证
 
