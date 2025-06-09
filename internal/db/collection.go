@@ -58,7 +58,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 
 	// Create index configuration
 	indexConf := &index.IndexConfig{
-		IndexType: opts.IndexType,
+		IndexType: index.IndexType(opts.IndexType),
 		Dimension: opts.Dimension,
 		SpaceType: index.L2Space, // default to L2 distance
 		Parameters: map[string]interface{}{

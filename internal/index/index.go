@@ -2,6 +2,7 @@ package index
 
 // SpaceType represents the distance metric type
 type SpaceType string
+type IndexType string
 
 const (
 	L2Space  SpaceType = "l2"
@@ -9,11 +10,16 @@ const (
 	CosSpace SpaceType = "cos"
 )
 
+const (
+	HNSWIndex IndexType = "hnsw"
+	IVFIndex  IndexType = "ivf"
+)
+
 // IndexConfig represents index configuration
 type IndexConfig struct {
 	SpaceType  SpaceType              // distance metric type
+	IndexType  IndexType              // index type (e.g., "hnsw", "ivf")
 	Dimension  int                    // vector dimension
-	IndexType  string                 // index type (e.g., "hnsw", "ivf")
 	Parameters map[string]interface{} // index-specific parameters
 }
 
@@ -48,7 +54,4 @@ type VectorIndex interface {
 
 	// Close closes the index and releases resources
 	Close() error
-
-	// ApplyOpWithWal applies a WAL entry to the index
-	ApplyOpWithWal(entry *WALEntry) error
 }

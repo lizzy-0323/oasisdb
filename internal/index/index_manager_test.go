@@ -152,6 +152,11 @@ func TestManagerVectorOperations(t *testing.T) {
 	err = manager.AddVectorBatch("test_collection", ids, vectors)
 	assert.NoError(t, err)
 
+	// Check if wal files are created
+	walFiles, err := os.ReadDir(path.Join(manager.conf.Dir, "walfile", "index"))
+	assert.NoError(t, err)
+	assert.Equal(t, 1, len(walFiles))
+
 	// Verify vectors were added by searching
 	result, err := index.Search(vector, 3)
 	assert.NoError(t, err)
