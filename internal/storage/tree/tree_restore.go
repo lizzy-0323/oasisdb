@@ -154,7 +154,7 @@ func (t *LSMTree) insertNodeWithReader(sstReader *sstable.SSTableReader, level i
 }
 
 func getLevelSeqFromSSTFile(file string) (level int, seq int32) {
-	file = strings.Replace(file, ".sst", "", -1)
+	file = strings.ReplaceAll(file, ".sst", "")
 	splitted := strings.Split(file, "_")
 	level, _ = strconv.Atoi(splitted[0])
 	_seq, _ := strconv.Atoi(splitted[1])

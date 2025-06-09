@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"oasisdb/internal/config"
+	"oasisdb/pkg/errors"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -116,11 +117,11 @@ func TestManagerDeleteIndex(t *testing.T) {
 
 	// Verify index was removed
 	_, err = manager.GetIndex("test_collection")
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errors.ErrIndexNotFound)
 
 	// Test delete non-existing index
 	err = manager.DeleteIndex("non_existing")
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, errors.ErrIndexNotFound)
 }
 
 func TestManagerVectorOperations(t *testing.T) {

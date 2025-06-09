@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"io/fs"
 	"oasisdb/internal/storage/filter"
 	"oasisdb/internal/storage/memtable"
@@ -67,8 +68,8 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 
 func (c *Config) Check() error {
 	if _, err := os.ReadDir(c.Dir); err != nil {
-		_, ok := err.(*fs.PathError)
-		if !ok || !strings.HasSuffix(err.Error(), "no such file or directory") {
+		var pathError *fs.PathError
+		if !errors.As(err, &pathError) || !strings.HasSuffix(pathError.Err.Error(), "no such file or directory") {
 			return err
 		}
 		if err = os.Mkdir(c.Dir, os.ModePerm); err != nil {

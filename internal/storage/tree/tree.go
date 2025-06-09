@@ -140,11 +140,12 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 func (t *LSMTree) levelBinarySearch(level int, key []byte, left, right int) (*Node, bool) {
 	for left <= right {
 		mid := left + (right-left)/2
-		if bytes.Compare(key, t.nodes[level][mid].startKey) < 0 {
+		switch {
+		case bytes.Compare(key, t.nodes[level][mid].startKey) < 0:
 			right = mid - 1
-		} else if bytes.Compare(key, t.nodes[level][mid].endKey) > 0 {
+		case bytes.Compare(key, t.nodes[level][mid].endKey) > 0:
 			left = mid + 1
-		} else {
+		default:
 			return t.nodes[level][mid], true
 		}
 	}
@@ -188,7 +189,7 @@ func (t *LSMTree) sstFile(level int, seq int32) string {
 }
 
 func walFileToMemTableIndex(walFile string) int {
-	rawIndex := strings.Replace(walFile, ".wal", "", -1)
+	rawIndex := strings.ReplaceAll(walFile, ".wal", "")
 	index, _ := strconv.Atoi(rawIndex)
 	return index
 }

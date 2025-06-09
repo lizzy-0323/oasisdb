@@ -116,7 +116,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 	// Get collection to validate dimension
 	collection, err := db.GetCollection(collectionName)
 	if err != nil {
-		return fmt.Errorf("failed to get collection: %v", err)
+		return fmt.Errorf("failed to get collection: %w", err)
 	}
 
 	// Prepare batch data
@@ -138,7 +138,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 		docKey := fmt.Sprintf("doc:%s:%s", collectionName, doc.ID)
 		docData, err := json.Marshal(doc)
 		if err != nil {
-			return fmt.Errorf("failed to marshal document %s: %v", doc.ID, err)
+			return fmt.Errorf("failed to marshal document %s: %w", doc.ID, err)
 		}
 
 		docKeys[i] = []byte(docKey)
@@ -149,12 +149,12 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 
 	// Batch store document metadata
 	if err := db.Storage.BatchPutScalar(docKeys, docValues); err != nil {
-		return fmt.Errorf("failed to batch store documents: %v", err)
+		return fmt.Errorf("failed to batch store documents: %w", err)
 	}
 
 	// Batch update vector index
 	if err := db.IndexManager.AddVectorBatch(collectionName, ids, vectors); err != nil {
-		return fmt.Errorf("failed to batch update vector index: %v", err)
+		return fmt.Errorf("failed to batch update vector index: %w", err)
 	}
 
 	return nil
