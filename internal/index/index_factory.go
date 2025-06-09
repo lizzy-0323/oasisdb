@@ -205,14 +205,7 @@ func (f *Factory) LoadIndexs() error {
 
 		// Load index data
 		indexPath := path.Join(f.conf.Dir, "indexfile", entry.Name())
-		file, err := os.Open(indexPath)
-		if err != nil {
-			logger.Error("Failed to open index file", "collection", collectionName, "error", err)
-			continue
-		}
-		defer file.Close()
-
-		if err := index.Load(file); err != nil {
+		if err := index.Load(indexPath); err != nil {
 			logger.Error("Failed to load index data", "collection", collectionName, "error", err)
 			continue
 		}
@@ -377,14 +370,7 @@ func (f *Factory) monitorIndexSave() error {
 		select {
 		case indexItem := <-f.indexCh:
 			// Save index to disk
-			file, err := os.Create(f.indexFiles(stringToInt32(indexItem.collectionName)))
-			if err != nil {
-				logger.Error("Failed to create index file", "error", err)
-				continue
-			}
-			defer file.Close()
-
-			if err := indexItem.index.Save(file); err != nil {
+			if err := indexItem.index.Save(f.indexFiles(stringToInt32(indexItem.collectionName))); err != nil {
 				logger.Error("Failed to save index", "error", err)
 				continue
 			}

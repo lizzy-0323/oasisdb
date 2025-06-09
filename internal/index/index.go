@@ -1,9 +1,5 @@
 package index
 
-import (
-	"io"
-)
-
 // SpaceType represents the distance metric type
 type SpaceType string
 
@@ -15,8 +11,8 @@ const (
 
 // IndexConfig represents index configuration
 type IndexConfig struct {
-	Dimension  int                    // vector dimension
 	SpaceType  SpaceType              // distance metric type
+	Dimension  int                    // vector dimension
 	IndexType  string                 // index type (e.g., "hnsw", "ivf")
 	Parameters map[string]interface{} // index-specific parameters
 }
@@ -45,10 +41,10 @@ type VectorIndex interface {
 	ToBytes() []byte
 
 	// Load loads the index from disk
-	Load(reader io.Reader) error
+	Load(filePath string) error
 
 	// Save saves the index to disk
-	Save(writer io.Writer) error
+	Save(filePath string) error
 
 	// Close closes the index and releases resources
 	Close() error

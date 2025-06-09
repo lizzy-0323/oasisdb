@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
-	"io"
 	"oasisdb/internal/engine/go_api/hnsw"
 )
 
 type hnswIndex struct {
-	index     *hnsw.Index
-	dimension int
-	config    *IndexConfig
+	index  *hnsw.Index
+	config *IndexConfig
 }
 
 func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
@@ -53,15 +51,14 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	}
 
 	return &hnswIndex{
-		index:     index,
-		dimension: config.Dimension,
-		config:    config,
+		index:  index,
+		config: config,
 	}, nil
 }
 
 func (h *hnswIndex) Add(id string, vector []float32) error {
-	if len(vector) != h.dimension {
-		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.dimension, len(vector))
+	if len(vector) != h.config.Dimension {
+		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.config.Dimension, len(vector))
 	}
 	return h.index.AddPoint(vector, uint32(stringToID(id)))
 }
@@ -85,8 +82,8 @@ func (h *hnswIndex) Delete(id string) error {
 }
 
 func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
-	if len(vector) != h.dimension {
-		return nil, fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.dimension, len(vector))
+	if len(vector) != h.config.Dimension {
+		return nil, fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.config.Dimension, len(vector))
 	}
 
 	ids, distances, err := h.index.SearchKNN(vector, k)
@@ -106,14 +103,30 @@ func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	}, nil
 }
 
-func (h *hnswIndex) Load(reader io.Reader) error {
-	// TODO: implement loading from reader
+func (h *hnswIndex) Load(filePath string) error {
+	var spaceType string
+	if h.config.SpaceType == IPSpace {
+		spaceType = "ip"
+	} else {
+		spaceType = "l2"
+	}
+
+	index, err := hnsw.LoadIndex(filePath, int(h.config.Dimension), spaceType)
+	if err != nil {
+		return fmt.Errorf("failed to load index: %v", err)
+	}
+
+	if h.index != nil {
+		h.index.Unload()
+	}
+
+	// Update index
+	h.index = index
 	return nil
 }
 
-func (h *hnswIndex) Save(writer io.Writer) error {
-	// TODO: implement saving to writer
-	return nil
+func (h *hnswIndex) Save(filePath string) error {
+	return h.index.SaveIndex(filePath)
 }
 
 func (h *hnswIndex) ToBytes() []byte {
