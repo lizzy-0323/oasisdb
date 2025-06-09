@@ -1,5 +1,5 @@
 # golangci-lint configuration file
-version: 2
+version: "2"
 
 run:
   timeout: 5m
