@@ -7,29 +7,36 @@ import (
 )
 
 type DB struct {
+	conf         *config.Config
 	Storage      storage.ScalarStorage
-	IndexFactory *index.Factory
+	IndexManager *index.Manager
 }
 
-func (db *DB) Open(conf *config.Config) error {
-	storage, err := storage.NewStorage(conf)
+func New(conf *config.Config) (*DB, error) {
+	return &DB{
+		conf: conf,
+	}, nil
+}
+
+func (db *DB) Open() error {
+	storage, err := storage.NewStorage(db.conf)
 	if err != nil {
 		return err
 	}
-	db.Storage = storage
-	indexFactory, err := index.NewFactory(conf)
+	indexManager, err := index.NewIndexManager(db.conf)
 	if err != nil {
 		return err
 	}
 	// load indexs
-	if err := indexFactory.LoadIndexs(); err != nil {
+	if err := indexManager.LoadIndexs(); err != nil {
 		return err
 	}
-	db.IndexFactory = indexFactory
+	db.Storage = storage
+	db.IndexManager = indexManager
 	return nil
 }
 
 func (db *DB) Close() {
 	db.Storage.Stop()
-	db.IndexFactory.Close()
+	db.IndexManager.Close()
 }

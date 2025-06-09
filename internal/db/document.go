@@ -31,7 +31,7 @@ func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
 	}
 
 	// upsert vector index
-	if err := db.IndexFactory.AddVector(collectionName, doc.ID, doc.Vector); err != nil {
+	if err := db.IndexManager.AddVector(collectionName, doc.ID, doc.Vector); err != nil {
 		return err
 	}
 
@@ -63,7 +63,7 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 		return err
 	}
 
-	if err := db.IndexFactory.DeleteVector(collectionName, id); err != nil {
+	if err := db.IndexManager.DeleteVector(collectionName, id); err != nil {
 		return err
 	}
 	return nil
@@ -71,7 +71,7 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 
 // SearchVectors returns top-k vector ids and distances
 func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) {
-	index, err := db.IndexFactory.GetIndex(collectionName)
+	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -85,7 +85,7 @@ func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int)
 // SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
 	// 1. 使用HNSW/IVF索引进行向量搜索
-	index, err := db.IndexFactory.GetIndex(collectionName)
+	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -152,7 +152,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 	}
 
 	// Batch update vector index
-	if err := db.IndexFactory.AddVectorBatch(collectionName, ids, vectors); err != nil {
+	if err := db.IndexManager.AddVectorBatch(collectionName, ids, vectors); err != nil {
 		return fmt.Errorf("failed to batch update vector index: %v", err)
 	}
 

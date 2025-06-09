@@ -47,9 +47,11 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 
 	// Check if collection exists
 	key := fmt.Sprintf("collection:%s", opts.Name)
-	if _, exists, err := db.Storage.GetScalar([]byte(key)); err != nil {
+	result, exists, err := db.Storage.GetScalar([]byte(key))
+	if err != nil {
 		return nil, err
-	} else if exists {
+	}
+	if exists && result != nil {
 		return nil, fmt.Errorf("collection %s already exists", opts.Name)
 	}
 
@@ -65,7 +67,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 	}
 
 	// Create index
-	_, err := db.IndexFactory.CreateIndex(opts.Name, indexConf)
+	_, err = db.IndexManager.CreateIndex(opts.Name, indexConf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create index: %v", err)
 	}
@@ -93,7 +95,7 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
+	if !exists || data == nil {
 		return nil, fmt.Errorf("collection %s not found", name)
 	}
 
@@ -103,7 +105,7 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 	}
 
 	// Get index
-	_, err = db.IndexFactory.GetIndex(name)
+	_, err = db.IndexManager.GetIndex(name)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get index: %v", err)
 	}
@@ -114,7 +116,7 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 // DeleteCollection deletes a collection and its index
 func (db *DB) DeleteCollection(name string) error {
 	// Delete index first
-	if err := db.IndexFactory.DeleteIndex(name); err != nil {
+	if err := db.IndexManager.DeleteIndex(name); err != nil {
 		return fmt.Errorf("failed to delete index: %v", err)
 	}
 

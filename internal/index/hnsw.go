@@ -3,8 +3,13 @@ package index
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"oasisdb/internal/engine/go_api/hnsw"
+)
+
+const (
+	DEFAULT_M               = 16
+	DEFAULT_EF_CONSTRUCTION = 200
+	DEFAULT_MAX_ELEMENTS    = 100000
 )
 
 type hnswIndex struct {
@@ -18,9 +23,9 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	}
 
 	// Get HNSW specific parameters
-	M := uint32(16)                // default M
-	efConstruction := uint32(200)  // default efConstruction
-	maxElements := uint32(1000000) // default maxElements
+	M := uint32(DEFAULT_M)                            // default M
+	efConstruction := uint32(DEFAULT_EF_CONSTRUCTION) // default efConstruction
+	maxElements := uint32(DEFAULT_MAX_ELEMENTS)       // default maxElements
 
 	if v, ok := config.Parameters["M"]; ok {
 		if m, ok := v.(float64); ok {
@@ -30,6 +35,8 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	if v, ok := config.Parameters["efConstruction"]; ok {
 		if ef, ok := v.(float64); ok {
 			efConstruction = uint32(ef)
+		} else {
+			efConstruction = DEFAULT_EF_CONSTRUCTION
 		}
 	}
 	if v, ok := config.Parameters["maxElements"]; ok {
@@ -89,6 +96,11 @@ func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	ids, distances, err := h.index.SearchKNN(vector, k)
 	if err != nil {
 		return nil, err
+	}
+	// Reverse the order of results
+	for i, j := 0, len(ids)-1; i < j; i, j = i+1, j-1 {
+		ids[i], ids[j] = ids[j], ids[i]
+		distances[i], distances[j] = distances[j], distances[i]
 	}
 
 	// Convert uint32 IDs back to strings
@@ -169,9 +181,12 @@ func (h *hnswIndex) ApplyOpWithWal(entry *WALEntry) error {
 
 // stringToID converts a string ID to int64
 func stringToID(id string) int64 {
-	h := fnv.New64a()
-	h.Write([]byte(id))
-	return int64(h.Sum64())
+	var n int64
+	_, err := fmt.Sscanf(id, "%d", &n)
+	if err != nil {
+		return 0
+	}
+	return n
 }
 
 // idToString converts an int64 ID back to string
