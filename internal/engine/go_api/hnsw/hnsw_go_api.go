@@ -17,13 +17,13 @@ type Index struct {
 	index *C.HNSWIndex
 }
 
-func NewIndex(dim, maxElements, M, efConstruction uint32, spaceType string) *Index {
+func NewIndex(dim, maxElements, m, efConstruction uint32, spaceType string) *Index {
 	var index *C.HNSWIndex
 	switch spaceType {
 	case "l2":
-		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(M), C.size_t(efConstruction), C.char('l'))
+		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(m), C.size_t(efConstruction), C.char('l'))
 	case "ip":
-		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(M), C.size_t(efConstruction), C.char('i'))
+		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(m), C.size_t(efConstruction), C.char('i'))
 	default:
 		return nil
 	}
@@ -62,7 +62,7 @@ func (idx *Index) AddItems(points [][]float32, ids []uint32, numGoroutines int) 
 		for i := 0; i < len(points); i++ {
 			err := idx.AddPoint(points[i], ids[i])
 			if err != nil {
-				return fmt.Errorf("failed to add point: %v", err)
+				return fmt.Errorf("failed to add point: %w", err)
 			}
 		}
 		return nil

@@ -70,7 +70,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 	// Create index
 	_, err = db.IndexManager.CreateIndex(opts.Name, indexConf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create index: %v", err)
+		return nil, fmt.Errorf("failed to create index: %w", err)
 	}
 
 	// Create collection
@@ -108,7 +108,7 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 	// Get index
 	_, err = db.IndexManager.GetIndex(name)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get index: %v", err)
+		return nil, fmt.Errorf("failed to get index: %w", err)
 	}
 
 	return &collection, nil
@@ -118,20 +118,20 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 func (db *DB) DeleteCollection(name string) error {
 	// Delete index first
 	if err := db.IndexManager.DeleteIndex(name); err != nil {
-		return fmt.Errorf("failed to delete index: %v", err)
+		return fmt.Errorf("failed to delete index: %w", err)
 	}
 
 	// Delete collection metadata
 	key := fmt.Sprintf("collection:%s", name)
 	result, exists, err := db.Storage.GetScalar([]byte(key))
 	if err != nil {
-		return fmt.Errorf("failed to get metadata: %v", err)
+		return fmt.Errorf("failed to get metadata: %w", err)
 	}
 	if !exists || result == nil {
 		return errors.ErrCollectionNotFound
 	}
 	if err := db.Storage.DeleteScalar([]byte(key)); err != nil {
-		return fmt.Errorf("failed to delete metadata: %v", err)
+		return fmt.Errorf("failed to delete metadata: %w", err)
 	}
 	return nil
 }

@@ -143,6 +143,9 @@ func (h *hnswIndex) Load(filePath string) error {
 }
 
 func (h *hnswIndex) Save(filePath string) error {
+	if h.index == nil {
+		return fmt.Errorf("index is not initialized")
+	}
 	return h.index.SaveIndex(filePath)
 }
 
@@ -152,6 +155,9 @@ func (h *hnswIndex) ToBytes() []byte {
 }
 
 func (h *hnswIndex) Close() error {
+	if h.index == nil {
+		return nil
+	}
 	h.index.Unload()
 	return nil
 }
@@ -161,21 +167,21 @@ func (h *hnswIndex) ApplyOpWithWal(entry *WALEntry) error {
 	case WALOpAddVector:
 		var data AddVectorData
 		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal add vector data: %v", err)
+			return fmt.Errorf("failed to unmarshal add vector data: %w", err)
 		}
 		return h.Add(data.ID, data.Vector)
 
 	case WALOpAddBatch:
 		var data AddBatchData
 		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal add batch data: %v", err)
+			return fmt.Errorf("failed to unmarshal add batch data: %w", err)
 		}
 		return h.AddBatch(data.IDs, data.Vectors)
 
 	case WALOpDeleteVector:
 		var data DeleteVectorData
 		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal delete vector data: %v", err)
+			return fmt.Errorf("failed to unmarshal delete vector data: %w", err)
 		}
 		return h.Delete(data.ID)
 

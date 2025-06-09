@@ -1,4 +1,4 @@
-all: clean build test
+all: clean build test lint
 
 clean:
 	@echo "Cleaning..."
@@ -16,4 +16,8 @@ build: engine
 	@echo "Building oasisdb..."
 	mkdir -p bin && go build -o bin/oasisdb cmd/main.go
 
-.PHONY: all clean engine build
+lint:
+	@echo "Running linter..."
+	golangci-lint run
+
+.PHONY: all test clean engine build lint

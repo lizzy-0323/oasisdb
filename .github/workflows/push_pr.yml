@@ -10,7 +10,12 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Set up golangci-lint
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin
+
+      - name: Checkout 
+        uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -22,3 +27,7 @@ jobs:
 
       - name: Test
         run: make test
+      
+      - name: Lint
+        run: make lint
+      

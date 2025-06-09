@@ -1,5 +1,29 @@
+# golangci-lint configuration file
+version: "2"
+
+run:
+  timeout: 5m
+
+output:
+  format: colored-line-number
+
+linters-settings:
+  govet:
+    check-shadowing: true
+  errcheck:
+    check-type-assertions: true
+  cyclop:
+    max-complexity: 15
+
 linters:
   disable:
+    - contextcheck
+    - exhaustruct
     - errcheck
-    - gosimple
-    - ineffassign
+  enable:
+    - govet
+    - bodyclose
+    - dupl
+    - errorlint
+    - gocritic
+    - gocyclo

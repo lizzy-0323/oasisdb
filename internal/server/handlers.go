@@ -1,9 +1,11 @@
 package server
 
 import (
+	"errors"
 	"net/http"
+
 	DB "oasisdb/internal/db"
-	"oasisdb/pkg/errors"
+	pkgerrors "oasisdb/pkg/errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,7 +52,7 @@ func (s *Server) handleCreateCollection() gin.HandlerFunc {
 			Parameters: req.Parameters,
 			IndexType:  req.IndexType,
 		})
-		if err == errors.ErrCollectionExists {
+		if errors.Is(err, pkgerrors.ErrCollectionExists) {
 			c.JSON(http.StatusOK, gin.H{"message": err.Error()})
 			return
 		}
