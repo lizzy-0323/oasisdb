@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"oasisdb/internal/index"
+	"oasisdb/pkg/errors"
 )
 
 // Collection represents a collection of vectors
@@ -52,7 +53,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 		return nil, err
 	}
 	if exists && result != nil {
-		return nil, fmt.Errorf("collection %s already exists", opts.Name)
+		return nil, errors.ErrCollectionExists
 	}
 
 	// Create index configuration
@@ -96,7 +97,7 @@ func (db *DB) GetCollection(name string) (*Collection, error) {
 		return nil, err
 	}
 	if !exists || data == nil {
-		return nil, fmt.Errorf("collection %s not found", name)
+		return nil, errors.ErrCollectionNotFound
 	}
 
 	var collection Collection
@@ -122,13 +123,15 @@ func (db *DB) DeleteCollection(name string) error {
 
 	// Delete collection metadata
 	key := fmt.Sprintf("collection:%s", name)
-	if _, exists, err := db.Storage.GetScalar([]byte(key)); err != nil {
-		return fmt.Errorf("failed to get collection: %v", err)
-	} else if !exists {
-		return fmt.Errorf("collection %s not found", name)
+	result, exists, err := db.Storage.GetScalar([]byte(key))
+	if err != nil {
+		return fmt.Errorf("failed to get metadata: %v", err)
+	}
+	if !exists || result == nil {
+		return errors.ErrCollectionNotFound
 	}
 	if err := db.Storage.DeleteScalar([]byte(key)); err != nil {
-		return fmt.Errorf("failed to delete collection: %v", err)
+		return fmt.Errorf("failed to delete metadata: %v", err)
 	}
 	return nil
 }

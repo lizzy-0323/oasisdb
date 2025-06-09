@@ -96,14 +96,22 @@ int hnsw_mark_deleted(HNSWIndex *index, size_t label) {
   }
 }
 
-void get_data_by_label(HNSWIndex *index, size_t label, float *out_data) {
-  auto data = index->alg->getDataByLabel<float>(label);
-  std::vector<float> *vec = new std::vector<float>(data.begin(), data.end());
-  size_t size = vec->size();
-  for (size_t i = 0; i < size; i++) {
-    out_data[i] = (*vec)[i];
+int get_data_by_label(HNSWIndex *index, size_t label, float *out_data) {
+  try {
+    auto data = index->alg->getDataByLabel<float>(label);
+    if (data.empty()) {
+      return -1; // label not found
+    }
+    std::vector<float> *vec = new std::vector<float>(data.begin(), data.end());
+    size_t size = vec->size();
+    for (size_t i = 0; i < size; i++) {
+      out_data[i] = (*vec)[i];
+    }
+    delete vec;
+    return 0;
+  } catch (...) {
+    return -1;
   }
-  delete vec;
 }
 
 int get_max_elements(HNSWIndex *index) { return index->alg->getMaxElements(); }

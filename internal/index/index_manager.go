@@ -12,6 +12,7 @@ import (
 
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/wal"
+	"oasisdb/pkg/errors"
 	"oasisdb/pkg/logger"
 )
 
@@ -154,7 +155,7 @@ func (m *Manager) LoadIndexs() error {
 			}
 			return nil
 		}
-		return fmt.Errorf("failed to read index directory: %v", err)
+		return errors.ErrFailedToLoadIndex
 	}
 
 	// 2. Reconstruct index from WAL
@@ -268,11 +269,11 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 	case IVFIndex:
 		// TODO: implement IVF index
 	default:
-		return nil, fmt.Errorf("unsupported index type: %s", config.IndexType)
+		return nil, errors.ErrUnsupportedIndexType
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("failed to create index: %v", err)
+		return nil, errors.ErrFailedToCreateIndex
 	}
 
 	// Write index config to file
@@ -394,7 +395,7 @@ func (m *Manager) AddVector(collectionName string, id string, vector []float32) 
 	// Get index
 	index, exists := m.indices[collectionName]
 	if !exists {
-		return fmt.Errorf("index not found for collection %s", collectionName)
+		return errors.ErrIndexNotFound
 	}
 
 	// Initialize WAL writer if not already initialized

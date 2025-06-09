@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"oasisdb/internal/engine/go_api/hnsw"
+	"oasisdb/pkg/errors"
 )
 
 const (
@@ -19,7 +20,7 @@ type hnswIndex struct {
 
 func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	if config.Dimension <= 0 {
-		return nil, fmt.Errorf("invalid dimension: %d", config.Dimension)
+		return nil, errors.ErrInvalidDimension
 	}
 
 	// Get HNSW specific parameters
@@ -54,7 +55,7 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 		string(config.SpaceType),
 	)
 	if index == nil {
-		return nil, fmt.Errorf("failed to create HNSW index")
+		return nil, errors.ErrFailedToCreateIndex
 	}
 
 	return &hnswIndex{
@@ -65,14 +66,14 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 
 func (h *hnswIndex) Add(id string, vector []float32) error {
 	if len(vector) != h.config.Dimension {
-		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.config.Dimension, len(vector))
+		return errors.ErrInvalidDimension
 	}
 	return h.index.AddPoint(vector, uint32(stringToID(id)))
 }
 
 func (h *hnswIndex) AddBatch(ids []string, vectors [][]float32) error {
 	if len(ids) != len(vectors) {
-		return fmt.Errorf("ids and vectors length mismatch")
+		return errors.ErrInvalidDimension
 	}
 
 	// Convert string IDs to uint32
@@ -85,12 +86,16 @@ func (h *hnswIndex) AddBatch(ids []string, vectors [][]float32) error {
 }
 
 func (h *hnswIndex) Delete(id string) error {
+	// 1. ensure id exists
+	if h.index.GetVectorByLabel(uint32(stringToID(id)), int(h.config.Dimension)) == nil {
+		return fmt.Errorf("id %s does not exist", id)
+	}
 	return h.index.MarkDeleted(uint32(stringToID(id)))
 }
 
 func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	if len(vector) != h.config.Dimension {
-		return nil, fmt.Errorf("vector dimension mismatch: expected %d, got %d", h.config.Dimension, len(vector))
+		return nil, errors.ErrInvalidDimension
 	}
 
 	ids, distances, err := h.index.SearchKNN(vector, k)
@@ -125,7 +130,7 @@ func (h *hnswIndex) Load(filePath string) error {
 
 	index, err := hnsw.LoadIndex(filePath, int(h.config.Dimension), spaceType)
 	if err != nil {
-		return fmt.Errorf("failed to load index: %v", err)
+		return errors.ErrFailedToLoadIndex
 	}
 
 	if h.index != nil {

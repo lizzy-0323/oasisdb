@@ -19,11 +19,12 @@ type Index struct {
 
 func NewIndex(dim, maxElements, M, efConstruction uint32, spaceType string) *Index {
 	var index *C.HNSWIndex
-	if spaceType == "l2" {
+	switch spaceType {
+	case "l2":
 		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(M), C.size_t(efConstruction), C.char('l'))
-	} else if spaceType == "ip" {
+	case "ip":
 		index = C.hnsw_new(C.size_t(dim), C.size_t(maxElements), C.size_t(M), C.size_t(efConstruction), C.char('i'))
-	} else {
+	default:
 		return nil
 	}
 	return &Index{index: index}
@@ -195,11 +196,12 @@ func LoadIndex(path string, dim int, spaceType string) (*Index, error) {
 	defer C.free(unsafe.Pointer(cPath))
 
 	var index *C.HNSWIndex
-	if spaceType == "l2" {
+	switch spaceType {
+	case "l2":
 		index = C.hnsw_load_index(cPath, C.size_t(dim), C.char('l'))
-	} else if spaceType == "ip" {
+	case "ip":
 		index = C.hnsw_load_index(cPath, C.size_t(dim), C.char('i'))
-	} else {
+	default:
 		return nil, fmt.Errorf("unsupported space type: %s", spaceType)
 	}
 
@@ -220,7 +222,10 @@ func (idx *Index) MarkDeleted(label uint32) error {
 // GetVectorByLabel get index by label
 func (idx *Index) GetVectorByLabel(label uint32, dim int) []float32 {
 	var outDataPtr C.float
-	C.get_data_by_label(idx.index, C.size_t(label), &outDataPtr)
+	ret := C.get_data_by_label(idx.index, C.size_t(label), &outDataPtr)
+	if ret != 0 {
+		return nil // label not found
+	}
 	outData := make([]float32, dim)
 	for i := 0; i < dim; i++ {
 		outData[i] = float32(*(*C.float)(unsafe.Pointer(uintptr(unsafe.Pointer(&outDataPtr)) + uintptr(i)*unsafe.Sizeof(C.float(0)))))

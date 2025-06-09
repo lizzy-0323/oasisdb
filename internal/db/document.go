@@ -3,6 +3,7 @@ package db
 import (
 	"encoding/json"
 	"fmt"
+	"oasisdb/pkg/errors"
 )
 
 // Document represents a document
@@ -46,7 +47,7 @@ func (db *DB) GetDocument(collectionName string, id string) (*Document, error) {
 		return nil, err
 	}
 	if !exists {
-		return nil, fmt.Errorf("document %s not found", id)
+		return nil, errors.ErrDocumentNotFound
 	}
 
 	var doc Document
@@ -84,19 +85,19 @@ func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int)
 
 // SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
-	// 1. 使用HNSW/IVF索引进行向量搜索
+	// 1. get index
 	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 2. 获取最近邻的文档ID和距离
+	// 2. search using hnsw index
 	searchResult, err := index.Search(vector, k)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	// 3. 根据文档ID获取完整的文档信息
+	// 3. get documents by ids
 	docs := make([]*Document, len(searchResult.IDs))
 	for i, id := range searchResult.IDs {
 		doc, err := db.GetDocument(collectionName, id)
@@ -106,7 +107,7 @@ func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, fi
 		docs[i] = doc
 	}
 
-	// 4. TODO: 应用过滤条件
+	// 4. return documents
 	return docs, searchResult.Distances, nil
 }
 
