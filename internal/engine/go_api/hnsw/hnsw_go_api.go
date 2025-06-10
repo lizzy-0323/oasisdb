@@ -8,7 +8,6 @@ package hnsw
 import "C"
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"unsafe"
 )
@@ -38,7 +37,6 @@ func (idx *Index) Unload() bool {
 	}
 	idx.Free()
 	idx.index = nil
-	runtime.GC()
 	return true
 }
 

@@ -1,7 +1,11 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	DB "oasisdb/internal/db"
@@ -9,6 +13,19 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// generateCacheKey creates a unique key for caching search results
+func generateCacheKey(collection string, vector []float32, limit int) string {
+	// Convert parameters to a string representation
+	vectorBytes, _ := json.Marshal(vector)
+
+	// Combine all parameters into a single string
+	data := fmt.Sprintf("%s:%s:%d", collection, string(vectorBytes), limit)
+
+	// Generate SHA-256 hash
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
 
 func (s *Server) handleHealthCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -25,16 +42,34 @@ func (s *Server) handleSearchVectors() gin.HandlerFunc {
 			return
 		}
 
-		docs, distances, err := s.db.SearchVectors(collectionName, req.Vector, req.Limit)
+		// Generate cache key
+		cacheKey := generateCacheKey(collectionName, req.Vector, req.Limit)
+
+		// Try to get from cache first
+		if cachedResult, exists := s.db.Cache.Get(cacheKey); exists {
+			result := cachedResult.(gin.H)
+			result["other"] = "cache_hit"
+			c.JSON(http.StatusOK, result)
+			return
+		}
+
+		ids, distances, err := s.db.SearchVectors(collectionName, req.Vector, req.Limit)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
-			"documents": docs,
+		// Prepare response
+		response := gin.H{
+			"ids":       ids,
 			"distances": distances,
-		})
+		}
+
+		// Cache the result
+		s.db.Cache.Set(cacheKey, response)
+
+		// Return response
+		c.JSON(http.StatusOK, response)
 	}
 }
 
@@ -165,9 +200,22 @@ func (s *Server) handleDeleteDocument() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")
 		docID := c.Param("id")
+
+		doc, err := s.db.GetDocument(collectionName, docID)
+		if err != nil {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
+
 		if err := s.db.DeleteDocument(collectionName, docID); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
+		}
+
+		if s.db.Cache != nil {
+			// Delete all cached entries for this document's vector
+			prefix := fmt.Sprintf("%s:%v", collectionName, doc.Vector)
+			s.db.Cache.DeleteWithPrefix(prefix)
 		}
 
 		c.Status(http.StatusOK)
@@ -189,10 +237,13 @@ func (s *Server) handleSearchDocuments() gin.HandlerFunc {
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		// Prepare response
+		response := gin.H{
 			"documents": docs,
 			"distances": distances,
-		})
+		}
+
+		c.JSON(http.StatusOK, response)
 	}
 }
 
