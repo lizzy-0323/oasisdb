@@ -14,12 +14,13 @@ func TestFromFile(t *testing.T) {
 	testConfigPath := path.Join(tmpDir, "test_config.yaml")
 
 	testConfig := `
-dir: ./data
+dir: ../../
 max_level: 7
 sst_size: 1048576 
 sst_num_per_level: 4
 sst_data_block_size: 16384
 sst_footer_size: 32
+cache_size: 10
 `
 	err := os.WriteFile(testConfigPath, []byte(testConfig), 0644)
 	assert.NoError(t, err)
@@ -30,12 +31,13 @@ sst_footer_size: 32
 	assert.NotNil(t, cfg)
 
 	// Verify the values
-	assert.Equal(t, "./data", cfg.Dir)
+	assert.Equal(t, "../../", cfg.Dir)
 	assert.Equal(t, 7, cfg.MaxLevel)
 	assert.Equal(t, uint64(1048576), cfg.SSTSize)
 	assert.Equal(t, uint64(4), cfg.SSTNumPerLevel)
 	assert.Equal(t, uint64(16384), cfg.SSTDataBlockSize)
 	assert.Equal(t, uint64(32), cfg.SSTFooterSize)
+	assert.Equal(t, 10, cfg.CacheSize)
 	assert.NotNil(t, cfg.Filter)
 	assert.NotNil(t, cfg.MemTableConstructor)
 

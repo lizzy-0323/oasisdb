@@ -23,7 +23,7 @@ type Config struct {
 	SSTFooterSize    uint64 `yaml:"sst_footer_size"`
 
 	// Cache Config
-	CacheSize int
+	CacheSize int `yaml:"cache_size"`
 
 	Filter              filter.Filter
 	MemTableConstructor memtable.MemTableConstructor
@@ -36,12 +36,14 @@ const (
 	DefaultSSTNumPerLevel   = 10
 	DefaultSSTDataBlockSize = 16 * 1024 // 16KB
 	DefaultSSTFooterSize    = 32        // 32B
+	DefaultCacheSize        = 10
 )
 
 func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	c := Config{
 		Dir:           dir,
 		SSTFooterSize: DefaultSSTFooterSize,
+		CacheSize:     DefaultCacheSize,
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -62,7 +64,7 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 		c.SSTFooterSize = DefaultSSTFooterSize
 	}
 	if c.CacheSize <= 0 {
-		c.CacheSize = 10
+		c.CacheSize = DefaultCacheSize
 	}
 	if c.Filter == nil {
 		c.Filter = filter.NewBloomFilter(1024)
@@ -123,6 +125,7 @@ func FromFile(filename string) (*Config, error) {
 		WithSSTNumPerLevel(config.SSTNumPerLevel),
 		WithSSTDataBlockSize(config.SSTDataBlockSize),
 		WithSSTFooterSize(config.SSTFooterSize),
+		WithCacheSize(config.CacheSize),
 	}
 
 	return NewConfig(config.Dir, opts...)
