@@ -1,8 +1,8 @@
 package db
 
 import (
-	"os"
 	"oasisdb/internal/config"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
