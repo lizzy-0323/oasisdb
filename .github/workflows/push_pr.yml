@@ -37,5 +37,7 @@ jobs:
       - name: Send Coverage
         env:
           COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: goveralls -coverprofile=coverage.out -service=github
-      
+        run: |
+          goveralls -coverprofile=coverage.out -service=github \
+            -repotoken ${{ secrets.GITHUB_TOKEN }} \
+            -parallel -flagname="unit-tests"
