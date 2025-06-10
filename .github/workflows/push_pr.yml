@@ -31,3 +31,11 @@ jobs:
       - name: Lint
         run: make lint
       
+      - name: Install Goveralls
+        run: go install github.com/mattn/goveralls@latest
+
+      - name: Send Coverage
+        env:
+          COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: goveralls -coverprofile=coverage.out -service=github
+      

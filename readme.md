@@ -1,5 +1,9 @@
 # OasisDB
 
+<!-- [![Build](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml/badge.svg)](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml) -->
+[![Coverage Status](https://coveralls.io/repos/github/lizzy-0323/oasisdb/badge.svg?branch=main)](https://coveralls.io/github/lizzy-0323/oasisdb?branch=main)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+
 English | [简体中文](readmd-CN.md)
 
 OasisDB is a high-performance vector database designed for simplicity and ease of use. It enables efficient vector similarity search for your applications through both standalone deployment and RESTful API interfaces.
