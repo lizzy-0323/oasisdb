@@ -8,6 +8,8 @@ OasisDB 是一个高性能的向量数据库，设计理念是简单易用。通
 
 1. 多种向量索引：HNSW(hnswlib), IVF(faiss)
 2. 简单易用：单机部署和 RESTful API
+3. Embedding 支持：多种 embedding 模型
+4. Python HTTP client：帮助您轻松地与 OasisDB 交互
 
 ## 架构
 
@@ -15,10 +17,16 @@ OasisDB 是一个高性能的向量数据库，设计理念是简单易用。通
 
 ## 快速开始
 
+### 构建
+
 ```bash
 make build
 ./bin/oasisdb
 ```
+
+### 使用
+
+您可以通过 HTTP client 发送请求到 OasisDB。
 
 ## 许可证
 

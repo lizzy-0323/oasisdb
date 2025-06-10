@@ -6,5 +6,7 @@ testdata/
 walfile
 indexfile
 sstfile
+coverage.out
+
 
 
