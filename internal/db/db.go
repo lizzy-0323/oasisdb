@@ -42,4 +42,5 @@ func (db *DB) Open() error {
 func (db *DB) Close() {
 	db.Storage.Stop()
 	db.IndexManager.Close()
+	db.Cache.Clear()
 }

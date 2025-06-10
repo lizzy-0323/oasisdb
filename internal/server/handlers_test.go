@@ -346,7 +346,7 @@ func TestHandleDeleteDocument(t *testing.T) {
 	r = httptest.NewRequest(http.MethodDelete, "/v1/collections/test_collection/documents/non_existent", nil)
 	server.router.ServeHTTP(w, r)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 	t.Log(w.Body.String())
 
 	// Test delete document from non-existent collection
@@ -354,7 +354,7 @@ func TestHandleDeleteDocument(t *testing.T) {
 	r = httptest.NewRequest(http.MethodDelete, "/v1/collections/non_existent/documents/doc1", nil)
 	server.router.ServeHTTP(w, r)
 
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, http.StatusNotFound, w.Code)
 	t.Log(w.Body.String())
 }
 
@@ -452,6 +452,100 @@ func TestHandleSearchDocuments(t *testing.T) {
 	// Test search in non-existent collection
 	w = httptest.NewRecorder()
 	r = httptest.NewRequest(http.MethodPost, "/v1/collections/non_existent/documents/search", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestHandleSearchVectors(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// Create a collection first
+	collReq := CreateCollectionRequest{
+		Name:      "test_collection",
+		Dimension: 3,
+	}
+
+	body, err := json.Marshal(collReq)
+	assert.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/collections", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Create some documents
+	docs := []UpsertDocumentRequest{
+		{
+			ID:     "1",
+			Vector: []float32{1.0, 2.0, 3.0},
+			Parameters: map[string]interface{}{
+				"tag": "test1",
+			},
+		},
+		{
+			ID:     "2",
+			Vector: []float32{4.0, 5.0, 6.0},
+			Parameters: map[string]interface{}{
+				"tag": "test2",
+			},
+		},
+	}
+
+	for _, doc := range docs {
+		body, err = json.Marshal(doc)
+		assert.NoError(t, err)
+
+		w = httptest.NewRecorder()
+		r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/documents", bytes.NewReader(body))
+		server.router.ServeHTTP(w, r)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+	}
+
+	// Test search vectors
+	searchReq := SearchVectorRequest{
+		Vector: []float32{1.0, 2.0, 3.0},
+		Limit:  2,
+	}
+
+	body, err = json.Marshal(searchReq)
+	assert.NoError(t, err)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/vectors/search", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Test if lru enabled
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/vectors/search", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+	// print result
+	assert.Contains(t, w.Body.String(), "cache_hit")
+
+	// Test invalid vector dimension
+	invalidReq := SearchVectorRequest{
+		Vector: []float32{1.0, 2.0}, // Wrong dimension
+		Limit:  2,
+	}
+
+	body, err = json.Marshal(invalidReq)
+	assert.NoError(t, err)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/vectors/search", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	// Test search in non-existent collection
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/non_existent/vectors/search", bytes.NewReader(body))
 	server.router.ServeHTTP(w, r)
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
