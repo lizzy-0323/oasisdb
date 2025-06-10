@@ -16,19 +16,16 @@ import (
 	"oasisdb/pkg/logger"
 )
 
-const (
-	HNSWIndex = "hnsw"
-	IVFIndex  = "ivf"
-)
-
 // Manager manages vector index instances
 type Manager struct {
-	conf      *config.Config
-	mu        sync.RWMutex
-	indices   map[string]VectorIndex // collection name -> index
-	indexCh   chan indexSaveItem
-	stopCh    chan struct{}
-	walWriter *wal.WALWriter
+	conf       *config.Config
+	mu         sync.RWMutex
+	indices    map[string]VectorIndex // collection name -> index
+	indexCh    chan indexSaveItem
+	stopCh     chan struct{}
+	doneCh     chan struct{} // signal when monitorIndexSave is done
+	stopSaveCh map[string]chan struct{}
+	walWriter  *wal.WALWriter
 }
 
 type indexSaveItem struct {
@@ -39,10 +36,12 @@ type indexSaveItem struct {
 // NewIndexManager creates a new index manager
 func NewIndexManager(conf *config.Config) (*Manager, error) {
 	m := &Manager{
-		conf:    conf,
-		indices: make(map[string]VectorIndex),
-		indexCh: make(chan indexSaveItem),
-		stopCh:  make(chan struct{}),
+		conf:       conf,
+		indices:    make(map[string]VectorIndex),
+		indexCh:    make(chan indexSaveItem, 100),
+		stopCh:     make(chan struct{}),
+		doneCh:     make(chan struct{}),
+		stopSaveCh: make(map[string]chan struct{}),
 	}
 	if err := m.LoadIndexs(); err != nil {
 		return nil, err
@@ -61,13 +60,14 @@ func (m *Manager) reconstructIndex() error {
 		return fmt.Errorf("failed to read WAL directory: %w", err)
 	}
 
-	// 2. Sort WAL files by sequence number
+	// 2. Sort WAL files by creation time
 	sort.Slice(entries, func(i, j int) bool {
-		seq1 := strings.TrimSuffix(entries[i].Name(), ".wal")
-		seq2 := strings.TrimSuffix(entries[j].Name(), ".wal")
-		num1, _ := strconv.Atoi(seq1)
-		num2, _ := strconv.Atoi(seq2)
-		return num1 < num2
+		info1, err1 := entries[i].Info()
+		info2, err2 := entries[j].Info()
+		if err1 != nil || err2 != nil {
+			return entries[i].Name() < entries[j].Name()
+		}
+		return info1.ModTime().Before(info2.ModTime())
 	})
 
 	// 3. Process each WAL file
@@ -127,13 +127,7 @@ func (m *Manager) reconstructIndex() error {
 			logger.Info("Reconstructed index from WAL", "collection", walEntry.Collection)
 		} else {
 			// Apply operation to existing index
-			index, exists := m.indices[walEntry.Collection]
-			if !exists {
-				logger.Error("Index not found for WAL operation", "collection", walEntry.Collection)
-				continue
-			}
-
-			if err := index.ApplyOpWithWal(walEntry); err != nil {
+			if err := m.ApplyOpWithWal(walEntry); err != nil {
 				logger.Error("Failed to apply WAL entry", "collection", walEntry.Collection, "error", err)
 				continue
 			}
@@ -149,7 +143,6 @@ func (m *Manager) LoadIndexs() error {
 	entries, err := os.ReadDir(path.Join(m.conf.Dir, "indexfile"))
 	if err != nil {
 		if os.IsNotExist(err) {
-			// Create directory if not exists
 			if err := os.MkdirAll(path.Join(m.conf.Dir, "indexfile"), 0755); err != nil {
 				return fmt.Errorf("failed to create index directory: %w", err)
 			}
@@ -193,7 +186,7 @@ func (m *Manager) LoadIndexs() error {
 			index, err = newHNSWIndex(&config)
 		case IVFIndex:
 			// TODO: implement IVF index
-			continue
+			index, err = newIVFIndex(&config)
 		default:
 			logger.Error("Unsupported index type", "collection", collectionName, "type", config.IndexType)
 			continue
@@ -229,13 +222,9 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 		return nil, fmt.Errorf("index already exists for collection %s", collectionName)
 	}
 
-	// Initialize WAL writer if not already initialized
-	if m.walWriter == nil {
-		walWriter, err := wal.NewWALWriter(m.newWalFile(stringToInt32(collectionName)))
-		if err != nil {
-			return nil, fmt.Errorf("failed to create WAL writer: %w", err)
-		}
-		m.walWriter = walWriter
+	// Set WAL writer
+	if err := m.setWalWriter(collectionName); err != nil {
+		return nil, err
 	}
 
 	// Create WAL entry
@@ -252,13 +241,8 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 	}
 
 	// Write to WAL
-	entryBytes, err := encodeWALEntry(entry)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode WAL entry: %w", err)
-	}
-
-	if err := m.walWriter.Write([]byte(collectionName), entryBytes); err != nil {
-		return nil, fmt.Errorf("failed to write to WAL: %w", err)
+	if err := m.ApplyOpWithWal(entry); err != nil {
+		return nil, err
 	}
 
 	// Create index based on type
@@ -292,6 +276,7 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 		collectionName: collectionName,
 		index:          index,
 	}
+	m.stopSaveCh[collectionName] = make(chan struct{})
 	logger.Info("Created vector index", "collection", collectionName, "type", config.IndexType)
 	return index, nil
 }
@@ -314,43 +299,48 @@ func (m *Manager) DeleteIndex(collectionName string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	// Get index instance
 	index, exists := m.indices[collectionName]
 	if !exists {
 		return errors.ErrIndexNotFound
 	}
+
+	// First stop any ongoing save operations
+	if ch, ok := m.stopSaveCh[collectionName]; ok {
+		close(ch)
+		delete(m.stopSaveCh, collectionName)
+	}
+
+	// Remove from map to prevent new operations
+	delete(m.indices, collectionName)
 
 	// Close index
 	if err := index.Close(); err != nil {
 		return fmt.Errorf("failed to close index: %w", err)
 	}
 
-	// Delete index file
-	indexPath := m.indexFiles(stringToInt32(collectionName))
+	// Delete files
+	indexPath := m.newIndexFile(stringToInt32(collectionName))
 	if err := os.Remove(indexPath); err != nil && !os.IsNotExist(err) {
 		logger.Error("Failed to delete index file", "error", err)
 	}
 
-	// Delete config file
-	configPath := path.Join(m.conf.Dir, "indexfile", collectionName+".conf")
-	if err := os.Remove(configPath); err != nil && !os.IsNotExist(err) {
-		logger.Error("Failed to delete config file", "error", err)
-	}
-
-	// Delete WAL file
 	walPath := m.newWalFile(stringToInt32(collectionName))
 	if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
 		logger.Error("Failed to delete WAL file", "error", err)
 	}
 
-	// Remove from map
-	delete(m.indices, collectionName)
 	logger.Info("Deleted vector index and related files", "collection", collectionName)
-
 	return nil
 }
 
 // Close closes all indices
 func (m *Manager) Close() error {
+	// First signal monitor to stop and wait for it to finish current operations
+	close(m.stopCh)
+	<-m.doneCh
+
+	// Now it's safe to close indices
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -361,37 +351,51 @@ func (m *Manager) Close() error {
 	}
 
 	m.indices = make(map[string]VectorIndex)
-	close(m.stopCh)
 	return nil
 }
 
 // monitorIndexSave monitors the index channel and saves the index to disk
 func (m *Manager) monitorIndexSave() error {
+	defer close(m.doneCh)
 	for {
 		select {
 		case indexItem := <-m.indexCh:
-			// Check if index still exists
 			m.mu.RLock()
+			stopCh, hasStopCh := m.stopSaveCh[indexItem.collectionName]
 			_, exists := m.indices[indexItem.collectionName]
 			m.mu.RUnlock()
+
+			// Skip if index is being deleted or doesn't exist
 			if !exists {
 				logger.Info("Skip saving deleted index", "collection", indexItem.collectionName)
 				continue
 			}
 
+			// Check if save operation should be stopped
+			if hasStopCh {
+				select {
+				case <-stopCh:
+					logger.Info("Skip saving index due to deletion", "collection", indexItem.collectionName)
+					continue
+				default:
+				}
+			}
+
 			// Save index to disk
-			if err := indexItem.index.Save(m.indexFiles(stringToInt32(indexItem.collectionName))); err != nil {
+			if err := indexItem.index.Save(m.newIndexFile(stringToInt32(indexItem.collectionName))); err != nil {
 				logger.Error("Failed to save index", "error", err)
 				continue
 			}
 			logger.Info("Saved index to disk", "collection", indexItem.collectionName)
 
-			// delete WAL file
+			// Delete WAL file
 			walPath := m.newWalFile(stringToInt32(indexItem.collectionName))
 			if err := os.Remove(walPath); err != nil && !os.IsNotExist(err) {
 				logger.Error("Failed to delete WAL file", "error", err)
 			}
+
 		case <-m.stopCh:
+			logger.Info("Stop saving index")
 			return nil
 		}
 	}
@@ -402,19 +406,9 @@ func (m *Manager) AddVector(collectionName string, id string, vector []float32) 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Get index
-	index, exists := m.indices[collectionName]
-	if !exists {
-		return errors.ErrIndexNotFound
-	}
-
-	// Initialize WAL writer if not already initialized
-	if m.walWriter == nil {
-		walWriter, err := wal.NewWALWriter(m.newWalFile(stringToInt32(collectionName)))
-		if err != nil {
-			return fmt.Errorf("failed to create WAL writer: %w", err)
-		}
-		m.walWriter = walWriter
+	// Set WAL writer
+	if err := m.setWalWriter(collectionName); err != nil {
+		return err
 	}
 
 	// Create WAL entry
@@ -433,7 +427,7 @@ func (m *Manager) AddVector(collectionName string, id string, vector []float32) 
 		Data:       dataBytes,
 	}
 
-	if err := index.ApplyOpWithWal(entry); err != nil {
+	if err := m.ApplyOpWithWal(entry); err != nil {
 		return fmt.Errorf("failed to apply WAL entry: %w", err)
 	}
 	return nil
@@ -444,19 +438,9 @@ func (m *Manager) AddVectorBatch(collectionName string, ids []string, vectors []
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Get index
-	index, exists := m.indices[collectionName]
-	if !exists {
-		return fmt.Errorf("index not found for collection %s", collectionName)
-	}
-
-	// Initialize WAL writer if not already initialized
-	if m.walWriter == nil {
-		walWriter, err := wal.NewWALWriter(m.newWalFile(stringToInt32(collectionName)))
-		if err != nil {
-			return fmt.Errorf("failed to create WAL writer: %w", err)
-		}
-		m.walWriter = walWriter
+	// Set WAL writer
+	if err := m.setWalWriter(collectionName); err != nil {
+		return err
 	}
 
 	// Create WAL entry
@@ -475,7 +459,7 @@ func (m *Manager) AddVectorBatch(collectionName string, ids []string, vectors []
 		Data:       dataBytes,
 	}
 
-	if err := index.ApplyOpWithWal(entry); err != nil {
+	if err := m.ApplyOpWithWal(entry); err != nil {
 		return fmt.Errorf("failed to apply WAL entry: %w", err)
 	}
 	return nil
@@ -487,19 +471,9 @@ func (m *Manager) DeleteVector(collectionName string, id string) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	// Get index
-	index, exists := m.indices[collectionName]
-	if !exists {
-		return fmt.Errorf("index not found for collection %s", collectionName)
-	}
-
-	// Initialize WAL writer if not already initialized
-	if m.walWriter == nil {
-		walWriter, err := wal.NewWALWriter(m.newWalFile(stringToInt32(collectionName)))
-		if err != nil {
-			return fmt.Errorf("failed to create WAL writer: %w", err)
-		}
-		m.walWriter = walWriter
+	// Set WAL writer
+	if err := m.setWalWriter(collectionName); err != nil {
+		return err
 	}
 
 	// Create WAL entry
@@ -515,10 +489,56 @@ func (m *Manager) DeleteVector(collectionName string, id string) error {
 		Data:       dataBytes,
 	}
 
-	if err := index.ApplyOpWithWal(entry); err != nil {
+	if err := m.ApplyOpWithWal(entry); err != nil {
 		return fmt.Errorf("failed to apply WAL entry: %w", err)
 	}
 	return nil
+}
+
+func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
+	entryBytes, err := encodeWALEntry(entry)
+	if err != nil {
+		return fmt.Errorf("failed to encode WAL entry: %w", err)
+	}
+
+	if err := m.walWriter.Write([]byte(entry.Collection), entryBytes); err != nil {
+		return fmt.Errorf("failed to write to WAL: %w", err)
+	}
+
+	if entry.OpType == WALOpCreateIndex {
+		return nil
+	}
+
+	index, exists := m.indices[entry.Collection]
+	if !exists {
+		return fmt.Errorf("index not found for collection %s", entry.Collection)
+	}
+
+	switch entry.OpType {
+	case WALOpAddVector:
+		var data AddVectorData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal add vector data: %w", err)
+		}
+		return index.Add(data.ID, data.Vector)
+
+	case WALOpAddBatch:
+		var data AddBatchData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal add batch data: %w", err)
+		}
+		return index.AddBatch(data.IDs, data.Vectors)
+
+	case WALOpDeleteVector:
+		var data DeleteVectorData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal delete vector data: %w", err)
+		}
+		return index.Delete(data.ID)
+
+	default:
+		return fmt.Errorf("unsupported WAL operation type: %s", entry.OpType)
+	}
 }
 
 func stringToInt32(str string) int32 {
@@ -526,10 +546,19 @@ func stringToInt32(str string) int32 {
 	return int32(i)
 }
 
+func (m *Manager) setWalWriter(collectionName string) error {
+	walWriter, err := wal.NewWALWriter(m.newWalFile(stringToInt32(collectionName)))
+	if err != nil {
+		return fmt.Errorf("failed to create WAL writer: %w", err)
+	}
+	m.walWriter = walWriter
+	return nil
+}
+
 func (m *Manager) newWalFile(seq int32) string {
 	return path.Join(m.conf.Dir, "walfile", "index", fmt.Sprintf("%d.wal", seq))
 }
 
-func (m *Manager) indexFiles(seq int32) string {
+func (m *Manager) newIndexFile(seq int32) string {
 	return path.Join(m.conf.Dir, "indexfile", fmt.Sprintf("index_%d.idx", seq))
 }
