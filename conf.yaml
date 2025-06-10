@@ -1,0 +1,6 @@
+dir: ./data
+max_level: 7
+sst_size: 1048576 
+sst_num_per_level: 4
+sst_data_block_size: 16384
+sst_footer_size: 32

@@ -8,17 +8,19 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Dir      string // dir to save sst files
-	MaxLevel int
+	Dir      string `yaml:"dir"` // dir to save sst files
+	MaxLevel int    `yaml:"max_level"`
 
 	// SSTable Config
-	SSTSize          uint64
-	SSTNumPerLevel   uint64
-	SSTDataBlockSize uint64
-	SSTFooterSize    uint64
+	SSTSize          uint64 `yaml:"sst_size"`
+	SSTNumPerLevel   uint64 `yaml:"sst_num_per_level"`
+	SSTDataBlockSize uint64 `yaml:"sst_data_block_size"`
+	SSTFooterSize    uint64 `yaml:"sst_footer_size"`
 
 	// Cache Config
 	CacheSize int
@@ -102,6 +104,30 @@ func (c *Config) Check() error {
 	return nil
 }
 
+// FromFile reads configuration from a YAML file
+func FromFile(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+
+	// Create config with options from file
+	opts := []ConfigOption{
+		WithMaxLevel(config.MaxLevel),
+		WithSSTSize(config.SSTSize),
+		WithSSTNumPerLevel(config.SSTNumPerLevel),
+		WithSSTDataBlockSize(config.SSTDataBlockSize),
+		WithSSTFooterSize(config.SSTFooterSize),
+	}
+
+	return NewConfig(config.Dir, opts...)
+}
+
 // WithMaxLevel set max level of lsm tree
 func WithMaxLevel(maxLevel int) ConfigOption {
 	return func(c *Config) {
@@ -113,6 +139,13 @@ func WithMaxLevel(maxLevel int) ConfigOption {
 func WithSSTSize(sstSize uint64) ConfigOption {
 	return func(c *Config) {
 		c.SSTSize = sstSize
+	}
+}
+
+// WithSSTFooterSize set sstable footer size
+func WithSSTFooterSize(sstFooterSize uint64) ConfigOption {
+	return func(c *Config) {
+		c.SSTFooterSize = sstFooterSize
 	}
 }
 
