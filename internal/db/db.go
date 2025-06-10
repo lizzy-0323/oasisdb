@@ -1,6 +1,7 @@
 package db
 
 import (
+	"oasisdb/internal/cache"
 	"oasisdb/internal/config"
 	"oasisdb/internal/index"
 	"oasisdb/internal/storage"
@@ -10,6 +11,7 @@ type DB struct {
 	conf         *config.Config
 	Storage      storage.ScalarStorage
 	IndexManager *index.Manager
+	Cache        *cache.LRUCache
 }
 
 func New(conf *config.Config) (*DB, error) {
@@ -33,6 +35,7 @@ func (db *DB) Open() error {
 	}
 	db.Storage = storage
 	db.IndexManager = indexManager
+	db.Cache = cache.NewLRUCache(db.conf.CacheSize)
 	return nil
 }
 

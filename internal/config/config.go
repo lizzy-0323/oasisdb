@@ -20,6 +20,9 @@ type Config struct {
 	SSTDataBlockSize uint64
 	SSTFooterSize    uint64
 
+	// Cache Config
+	CacheSize int
+
 	Filter              filter.Filter
 	MemTableConstructor memtable.MemTableConstructor
 }
@@ -55,6 +58,9 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	}
 	if c.SSTFooterSize <= 0 {
 		c.SSTFooterSize = DefaultSSTFooterSize
+	}
+	if c.CacheSize <= 0 {
+		c.CacheSize = 10
 	}
 	if c.Filter == nil {
 		c.Filter = filter.NewBloomFilter(1024)
@@ -135,5 +141,12 @@ func WithFilter(filter filter.Filter) ConfigOption {
 func WithMemTableConstructor(constructor memtable.MemTableConstructor) ConfigOption {
 	return func(c *Config) {
 		c.MemTableConstructor = constructor
+	}
+}
+
+// WithCacheSize set cache size
+func WithCacheSize(cacheSize int) ConfigOption {
+	return func(c *Config) {
+		c.CacheSize = cacheSize
 	}
 }

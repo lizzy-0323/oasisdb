@@ -1,7 +1,11 @@
 package server
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	DB "oasisdb/internal/db"
@@ -9,6 +13,20 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// generateCacheKey creates a unique key for caching search results
+func generateCacheKey(collection string, vector []float32, limit int, filter map[string]interface{}) string {
+	// Convert parameters to a string representation
+	filterBytes, _ := json.Marshal(filter)
+	vectorBytes, _ := json.Marshal(vector)
+
+	// Combine all parameters into a single string
+	data := fmt.Sprintf("%s:%s:%d:%s", collection, string(vectorBytes), limit, string(filterBytes))
+
+	// Generate SHA-256 hash
+	hash := sha256.Sum256([]byte(data))
+	return hex.EncodeToString(hash[:])
+}
 
 func (s *Server) handleHealthCheck() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -183,16 +201,34 @@ func (s *Server) handleSearchDocuments() gin.HandlerFunc {
 			return
 		}
 
+		// Generate cache key
+		cacheKey := generateCacheKey(collectionName, req.Vector, req.Limit, req.Filter)
+
+		// Try to get from cache first
+		if cachedResult, exists := s.db.Cache.Get(cacheKey); exists {
+			result := cachedResult.(map[string]interface{})
+			c.JSON(http.StatusOK, result)
+			return
+		}
+
+		// If not in cache, perform the search
 		docs, distances, err := s.db.SearchDocuments(collectionName, req.Vector, req.Limit, req.Filter)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{
+		// Prepare response
+		response := gin.H{
 			"documents": docs,
 			"distances": distances,
-		})
+		}
+
+		// Cache the result
+		s.db.Cache.Set(cacheKey, response)
+
+		// Return response
+		c.JSON(http.StatusOK, response)
 	}
 }
 
