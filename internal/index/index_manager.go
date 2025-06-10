@@ -16,7 +16,6 @@ import (
 	"oasisdb/pkg/logger"
 )
 
-
 // Manager manages vector index instances
 type Manager struct {
 	conf      *config.Config
@@ -473,13 +472,6 @@ func (m *Manager) DeleteVector(collectionName string, id string) error {
 }
 
 func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	index, exists := m.indices[entry.Collection]
-	if !exists {
-		return fmt.Errorf("index not found for collection %s", entry.Collection)
-	}
-
 	entryBytes, err := encodeWALEntry(entry)
 	if err != nil {
 		return fmt.Errorf("failed to encode WAL entry: %w", err)
@@ -487,6 +479,15 @@ func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
 
 	if err := m.walWriter.Write([]byte(entry.Collection), entryBytes); err != nil {
 		return fmt.Errorf("failed to write to WAL: %w", err)
+	}
+
+	if entry.OpType == WALOpCreateIndex {
+		return nil
+	}
+
+	index, exists := m.indices[entry.Collection]
+	if !exists {
+		return fmt.Errorf("index not found for collection %s", entry.Collection)
 	}
 
 	switch entry.OpType {
@@ -510,8 +511,6 @@ func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
 			return fmt.Errorf("failed to unmarshal delete vector data: %w", err)
 		}
 		return index.Delete(data.ID)
-	case WALOpCreateIndex:
-		return nil
 
 	default:
 		return fmt.Errorf("unsupported WAL operation type: %s", entry.OpType)
