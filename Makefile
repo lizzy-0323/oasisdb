@@ -10,7 +10,7 @@ engine:
 	
 test:
 	@echo "Running tests..."
-	go test -v ./...
+	go test -v -coverprofile=coverage.out ./...
 
 build: engine
 	@echo "Building oasisdb..."
