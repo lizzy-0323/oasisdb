@@ -1,7 +1,6 @@
 package index
 
 import (
-	"encoding/json"
 	"fmt"
 	"oasisdb/internal/engine/go_api/hnsw"
 	"oasisdb/pkg/errors"
@@ -160,34 +159,6 @@ func (h *hnswIndex) Close() error {
 	}
 	h.index.Unload()
 	return nil
-}
-
-func (h *hnswIndex) ApplyOpWithWal(entry *WALEntry) error {
-	switch entry.OpType {
-	case WALOpAddVector:
-		var data AddVectorData
-		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal add vector data: %w", err)
-		}
-		return h.Add(data.ID, data.Vector)
-
-	case WALOpAddBatch:
-		var data AddBatchData
-		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal add batch data: %w", err)
-		}
-		return h.AddBatch(data.IDs, data.Vectors)
-
-	case WALOpDeleteVector:
-		var data DeleteVectorData
-		if err := json.Unmarshal(entry.Data, &data); err != nil {
-			return fmt.Errorf("failed to unmarshal delete vector data: %w", err)
-		}
-		return h.Delete(data.ID)
-
-	default:
-		return fmt.Errorf("unsupported WAL operation type: %s", entry.OpType)
-	}
 }
 
 // stringToID converts a string ID to int64
