@@ -1,4 +1,4 @@
-all: clean build test lint
+all: clean build test lint help
 
 clean:
 	@echo "Cleaning..."
@@ -20,4 +20,13 @@ lint:
 	@echo "Running linter..."
 	golangci-lint run
 
-.PHONY: all test clean engine build lint
+help:
+	@echo "Available targets:"
+	@echo "  all: Clean, build, test, lint"
+	@echo "  clean: Clean up the build directory"
+	@echo "  build: Build the application"
+	@echo "  test: Run tests"
+	@echo "  lint: Run linter"
+	@echo "  help: Show this help message"
+
+.PHONY: all test clean engine build lint help
