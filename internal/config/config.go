@@ -8,20 +8,22 @@ import (
 	"os"
 	"path"
 	"strings"
+
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Dir      string // dir to save sst files
-	MaxLevel int
+	Dir      string `yaml:"dir"` // dir to save sst files
+	MaxLevel int    `yaml:"max_level"`
 
 	// SSTable Config
-	SSTSize          uint64
-	SSTNumPerLevel   uint64
-	SSTDataBlockSize uint64
-	SSTFooterSize    uint64
+	SSTSize          uint64 `yaml:"sst_size"`
+	SSTNumPerLevel   uint64 `yaml:"sst_num_per_level"`
+	SSTDataBlockSize uint64 `yaml:"sst_data_block_size"`
+	SSTFooterSize    uint64 `yaml:"sst_footer_size"`
 
 	// Cache Config
-	CacheSize int
+	CacheSize int `yaml:"cache_size"`
 
 	Filter              filter.Filter
 	MemTableConstructor memtable.MemTableConstructor
@@ -34,12 +36,14 @@ const (
 	DefaultSSTNumPerLevel   = 10
 	DefaultSSTDataBlockSize = 16 * 1024 // 16KB
 	DefaultSSTFooterSize    = 32        // 32B
+	DefaultCacheSize        = 10
 )
 
 func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	c := Config{
 		Dir:           dir,
 		SSTFooterSize: DefaultSSTFooterSize,
+		CacheSize:     DefaultCacheSize,
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -60,7 +64,7 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 		c.SSTFooterSize = DefaultSSTFooterSize
 	}
 	if c.CacheSize <= 0 {
-		c.CacheSize = 10
+		c.CacheSize = DefaultCacheSize
 	}
 	if c.Filter == nil {
 		c.Filter = filter.NewBloomFilter(1024)
@@ -102,6 +106,31 @@ func (c *Config) Check() error {
 	return nil
 }
 
+// FromFile reads configuration from a YAML file
+func FromFile(filename string) (*Config, error) {
+	data, err := os.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+
+	var config Config
+	if err := yaml.Unmarshal(data, &config); err != nil {
+		return nil, err
+	}
+
+	// Create config with options from file
+	opts := []ConfigOption{
+		WithMaxLevel(config.MaxLevel),
+		WithSSTSize(config.SSTSize),
+		WithSSTNumPerLevel(config.SSTNumPerLevel),
+		WithSSTDataBlockSize(config.SSTDataBlockSize),
+		WithSSTFooterSize(config.SSTFooterSize),
+		WithCacheSize(config.CacheSize),
+	}
+
+	return NewConfig(config.Dir, opts...)
+}
+
 // WithMaxLevel set max level of lsm tree
 func WithMaxLevel(maxLevel int) ConfigOption {
 	return func(c *Config) {
@@ -113,6 +142,13 @@ func WithMaxLevel(maxLevel int) ConfigOption {
 func WithSSTSize(sstSize uint64) ConfigOption {
 	return func(c *Config) {
 		c.SSTSize = sstSize
+	}
+}
+
+// WithSSTFooterSize set sstable footer size
+func WithSSTFooterSize(sstFooterSize uint64) ConfigOption {
+	return func(c *Config) {
+		c.SSTFooterSize = sstFooterSize
 	}
 }
 
