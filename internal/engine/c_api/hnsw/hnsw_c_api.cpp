@@ -1,6 +1,6 @@
 #include "hnsw_c_api.h"
-#include "../../index/hnswlib/hnswlib.h"
-#include "../../index/hnswlib/space_l2.h"
+#include "../../indexlib/hnswlib/hnswlib.h"
+#include "../../indexlib/hnswlib/space_l2.h"
 #include <memory>
 
 struct HNSWIndex {

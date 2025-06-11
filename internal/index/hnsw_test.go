@@ -18,6 +18,7 @@ func TestIDToString(t *testing.T) {
 
 func TestHNSWIndex(t *testing.T) {
 	config := &IndexConfig{
+		IndexType: HNSWIndex,
 		Dimension: 3,
 		SpaceType: L2Space,
 		Parameters: map[string]interface{}{

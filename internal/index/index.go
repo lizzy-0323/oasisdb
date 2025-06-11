@@ -34,6 +34,9 @@ type VectorIndex interface {
 	// Add adds a vector to the index
 	Add(id string, vector []float32) error
 
+	// Train trains the index
+	Train(vector []float32) error
+
 	// AddBatch adds multiple vectors to the index
 	AddBatch(ids []string, vectors [][]float32) error
 
@@ -42,9 +45,6 @@ type VectorIndex interface {
 
 	// Search performs a k-NN search
 	Search(vector []float32, k int) (*SearchResult, error)
-
-	// ToBytes converts the index to a byte slice
-	ToBytes() []byte
 
 	// Load loads the index from disk
 	Load(filePath string) error

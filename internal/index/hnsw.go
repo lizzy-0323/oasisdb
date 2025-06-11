@@ -148,9 +148,13 @@ func (h *hnswIndex) Save(filePath string) error {
 	return h.index.SaveIndex(filePath)
 }
 
-func (h *hnswIndex) ToBytes() []byte {
+func (h *hnswIndex) ToBytes() ([]byte, error) {
 	// TODO: implement ToBytes
-	return nil
+	return nil, errors.ErrNotImplemented
+}
+
+func (h *hnswIndex) Train(vector []float32) error {
+	return errors.ErrNotImplemented
 }
 
 func (h *hnswIndex) Close() error {
