@@ -399,6 +399,20 @@ func (m *Manager) monitorIndexSave() error {
 	}
 }
 
+// Train trains the ivf index, not support hnsw index
+func (m *Manager) Train(collectionName string, vector []float32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// TODO: here we not use WAL
+	index, exists := m.indices[collectionName]
+	if !exists {
+		return errors.ErrIndexNotFound
+	}
+
+	return index.Train(vector)
+}
+
 // AddVector adds a vector to the specified index with WAL support
 func (m *Manager) AddVector(collectionName string, id string, vector []float32) error {
 	m.mu.Lock()

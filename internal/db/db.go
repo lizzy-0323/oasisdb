@@ -29,12 +29,15 @@ func (db *DB) Open() error {
 	if err != nil {
 		return err
 	}
-	// load indexs
+	// load vector indexs
 	if err := indexManager.LoadIndexs(); err != nil {
 		return err
 	}
+	// Set scalar storage
 	db.Storage = storage
+	// Set vector index manager
 	db.IndexManager = indexManager
+	// Set cache
 	db.Cache = cache.NewLRUCache(db.conf.CacheSize)
 	return nil
 }
