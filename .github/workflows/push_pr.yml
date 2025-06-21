@@ -16,10 +16,17 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
+      - name: install blas
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libopenblas-dev
+          sudo apt-get install -y liblapack-dev
+
       - name: install openmp
         run: |
           sudo apt-get update
           sudo apt-get install -y libomp-dev
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
