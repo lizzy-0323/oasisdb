@@ -1,5 +1,8 @@
-cmake_minimum_required(VERSION 3.10)
-project(vector_search_engine)
+cmake_minimum_required(VERSION 3.10...3.26)
+project(oasisdb_engine LANGUAGES CXX)
+
+include(GNUInstallDirs)
+include(CheckCXXCompilerFlag)
 
 # Add o3 flag
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
