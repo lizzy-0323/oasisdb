@@ -1,8 +1,10 @@
 .vscode
+.venv
 .DS_Store
 build
 bin
 testdata/
+__pycache__/
 walfile
 indexfile
 sstfile
