@@ -3,6 +3,7 @@
 build
 bin
 testdata/
+__pycache__/
 walfile
 indexfile
 sstfile
