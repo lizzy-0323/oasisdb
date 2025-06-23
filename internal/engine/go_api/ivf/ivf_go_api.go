@@ -71,7 +71,7 @@ func (idx *IVFIndex) Add(vector []float32, id int64) error {
 	defer idx.mutex.Unlock()
 
 	ret := C.ivf_add(idx.index, C.uint(1),
-		(*C.float)(&vector[0]), (*C.longlong)(&id))
+		(*C.float)(&vector[0]), (*C.int64_t)(&id))
 	if ret != Success {
 		return fmt.Errorf("failed to add vector to IVF index: %d", ret)
 	}
@@ -142,7 +142,7 @@ func (idx *IVFIndex) addBatch(vectors [][]float32, ids []int64, start, end int) 
 		batchIds[i] = ids[start+i]
 	}
 
-	ret := C.ivf_add(idx.index, C.uint32_t(batchSize), (*C.float)(&flatVectors[0]), (*C.longlong)(&batchIds[0]))
+	ret := C.ivf_add(idx.index, C.uint32_t(batchSize), (*C.float)(&flatVectors[0]), (*C.int64_t)(&batchIds[0]))
 	if ret != Success {
 		return fmt.Errorf("failed to add batch: %d", ret)
 	}
@@ -181,7 +181,7 @@ func (idx *IVFIndex) Remove(ids []int64) error {
 		return nil
 	}
 
-	err := C.ivf_remove(idx.index, C.uint32_t(len(ids)), (*C.longlong)(&ids[0]))
+	err := C.ivf_remove(idx.index, C.uint32_t(len(ids)), (*C.int64_t)(&ids[0]))
 	if err != Success {
 		return fmt.Errorf("failed to remove vectors from IVF index: %d", err)
 	}
