@@ -2,7 +2,7 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/lizzy-0323/oasisdb/badge.svg?branch=main)](https://coveralls.io/github/lizzy-0323/oasisdb?branch=main)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-![logo](./docs/images/logo.png)
+<!-- ![logo](./docs/images/logo.png) -->
 
 <!-- [![Build](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml/badge.svg)](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml) -->
 
@@ -35,6 +35,12 @@ I start this project for all the beginners to learn vector search very easily, a
 ```bash
 make build
 ./bin/oasisdb
+```
+
+### Run test
+
+```bash
+make test
 ```
 
 ### Usage

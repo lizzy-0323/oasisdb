@@ -6,12 +6,6 @@ import (
 	"oasisdb/pkg/errors"
 )
 
-const (
-	DEFAULT_M               = 16
-	DEFAULT_EF_CONSTRUCTION = 200
-	DEFAULT_MAX_ELEMENTS    = 100000
-)
-
 type hnswIndex struct {
 	index  *hnsw.Index
 	config *IndexConfig
@@ -70,6 +64,10 @@ func (h *hnswIndex) Add(id string, vector []float32) error {
 	return h.index.AddPoint(vector, uint32(stringToID(id)))
 }
 
+func (h *hnswIndex) Build(ids []string, vectors [][]float32) error {
+	return h.AddBatch(ids, vectors)
+}
+
 func (h *hnswIndex) AddBatch(ids []string, vectors [][]float32) error {
 	if len(ids) != len(vectors) {
 		return errors.ErrInvalidDimension
@@ -81,7 +79,7 @@ func (h *hnswIndex) AddBatch(ids []string, vectors [][]float32) error {
 		uint32IDs[i] = uint32(stringToID(id))
 	}
 
-	return h.index.AddItems(vectors, uint32IDs, 4) // Use 4 goroutines for batch insert
+	return h.index.AddItems(vectors, uint32IDs, DEFAULT_BUILD_THREADS) // Use 4 goroutines for batch insert
 }
 
 func (h *hnswIndex) Delete(id string) error {
@@ -146,11 +144,6 @@ func (h *hnswIndex) Save(filePath string) error {
 		return fmt.Errorf("index is not initialized")
 	}
 	return h.index.SaveIndex(filePath)
-}
-
-func (h *hnswIndex) ToBytes() []byte {
-	// TODO: implement ToBytes
-	return nil
 }
 
 func (h *hnswIndex) Close() error {

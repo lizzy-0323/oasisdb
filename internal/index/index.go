@@ -4,17 +4,6 @@ package index
 type SpaceType string
 type IndexType string
 
-const (
-	L2Space  SpaceType = "l2"
-	IPSpace  SpaceType = "ip"
-	CosSpace SpaceType = "cos"
-)
-
-const (
-	HNSWIndex IndexType = "hnsw"
-	IVFIndex  IndexType = "ivf"
-)
-
 // IndexConfig represents index configuration
 type IndexConfig struct {
 	SpaceType  SpaceType              // distance metric type
@@ -37,14 +26,14 @@ type VectorIndex interface {
 	// AddBatch adds multiple vectors to the index
 	AddBatch(ids []string, vectors [][]float32) error
 
+	// Build builds the index
+	Build(ids []string, vectors [][]float32) error
+
 	// Delete removes a vector from the index
 	Delete(id string) error
 
 	// Search performs a k-NN search
 	Search(vector []float32, k int) (*SearchResult, error)
-
-	// ToBytes converts the index to a byte slice
-	ToBytes() []byte
 
 	// Load loads the index from disk
 	Load(filePath string) error

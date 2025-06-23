@@ -146,6 +146,24 @@ func (s *Server) handleListCollections() gin.HandlerFunc {
 	}
 }
 
+func (s *Server) handleBuildIndex() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		collectionName := c.Param("name")
+		var req BatchUpsertRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := s.db.BatchUpsertDocuments(collectionName, req.Documents); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		c.Status(http.StatusOK)
+	}
+}
+
 func (s *Server) handleUpsertDocument() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		collectionName := c.Param("name")

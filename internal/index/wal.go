@@ -12,6 +12,7 @@ const (
 	WALOpAddVector    WALOpType = "add_vector"
 	WALOpAddBatch     WALOpType = "add_batch"
 	WALOpDeleteVector WALOpType = "delete_vector"
+	WALOpBuildIndex   WALOpType = "build_index"
 )
 
 // WALEntry represents a single WAL log entry
@@ -34,6 +35,11 @@ type AddVectorData struct {
 
 // AddBatchData represents the data for adding multiple vectors
 type AddBatchData struct {
+	IDs     []string    `json:"ids"`
+	Vectors [][]float32 `json:"vectors"`
+}
+
+type BuildIndexData struct {
 	IDs     []string    `json:"ids"`
 	Vectors [][]float32 `json:"vectors"`
 }
