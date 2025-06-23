@@ -15,6 +15,33 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# Configure OpenMP for macOS
+if(APPLE)
+    # Find Homebrew's libomp installation
+    execute_process(
+        COMMAND brew --prefix libomp
+        OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    
+    if(HOMEBREW_LIBOMP_PREFIX)
+        # Set OpenMP flags for macOS with Clang
+        set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp")
+        set(OpenMP_CXX_LIB_NAMES "omp")
+        set(OpenMP_omp_LIBRARY "${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib")
+        set(OpenMP_CXX_INCLUDE_DIRS "${HOMEBREW_LIBOMP_PREFIX}/include")
+        
+        # Add to global flags
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+        include_directories(${OpenMP_CXX_INCLUDE_DIRS})
+        link_directories(${HOMEBREW_LIBOMP_PREFIX}/lib)
+        
+        message(STATUS "Using OpenMP from Homebrew: ${HOMEBREW_LIBOMP_PREFIX}")
+    else()
+        message(WARNING "Homebrew's libomp not found. OpenMP might not work correctly.")
+    endif()
+endif()
+
 find_package(FAISS QUIET)
 if(NOT FAISS_FOUND)
     message(STATUS "FAISS not found, building from source")
@@ -81,3 +108,10 @@ if(APPLE)
 endif()
 
 target_link_libraries(ivf_c_api PUBLIC ${FAISS_LIBRARIES})
+
+# Link OpenMP if on macOS
+if(APPLE)
+    if(DEFINED OpenMP_omp_LIBRARY)
+        target_link_libraries(ivf_c_api PUBLIC ${OpenMP_omp_LIBRARY})
+    endif()
+endif()

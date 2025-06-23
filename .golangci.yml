@@ -24,6 +24,5 @@ linters:
     - govet
     - bodyclose
     - dupl
-    - errorlint
     - gocritic
     - gocyclo

@@ -95,7 +95,7 @@ func TestIVFIndex(t *testing.T) {
 	}
 
 	// Verify loaded index by performing a search
-	result, err = newIdx.Search(query, 1)
+	_, err = newIdx.Search(query, 1)
 	if err != nil {
 		t.Fatalf("Failed to search loaded index: %v", err)
 	}
