@@ -457,6 +457,55 @@ func TestHandleSearchDocuments(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
+func TestHandleBuildIndex(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// create collection first
+	collReq := CreateCollectionRequest{
+		Name:      "test_collection",
+		IndexType: "ivf",
+		Dimension: 3,
+	}
+	body, err := json.Marshal(collReq)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/collections", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// prepare documents for build index
+	docs := []*db.Document{
+		{ID: "doc1", Vector: []float32{1.0, 2.0, 3.0}, Parameters: map[string]any{"tag": "a"}},
+		{ID: "doc2", Vector: []float32{4.0, 5.0, 6.0}},
+	}
+	buildReq := BatchUpsertRequest{Documents: docs}
+	body, err = json.Marshal(buildReq)
+	assert.NoError(t, err)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/buildindex", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// invalid vector dimension
+	docsInvalid := []*db.Document{{ID: "bad", Vector: []float32{1.0, 2.0}}} // dimension 2 != 3
+	buildReq = BatchUpsertRequest{Documents: docsInvalid}
+	body, err = json.Marshal(buildReq)
+	assert.NoError(t, err)
+
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/test_collection/buildindex", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+
+	// non-existent collection
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/non_existent/buildindex", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
 func TestHandleSearchVectors(t *testing.T) {
 	server, cleanup := setupTestServer(t)
 	defer cleanup()

@@ -25,6 +25,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/", s.handleHealthCheck())
 	s.router.GET("/v1/collections/:name", s.handleGetCollection())
 	s.router.DELETE("/v1/collections/:name", s.handleDeleteCollection())
+	s.router.POST("/v1/collections/:name/buildindex", s.handleBuildIndex())
 	s.router.POST("/v1/collections", s.handleCreateCollection())
 	s.router.GET("/v1/collections", s.handleListCollections())
 

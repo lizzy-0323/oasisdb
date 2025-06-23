@@ -124,6 +124,64 @@ func TestManagerDeleteIndex(t *testing.T) {
 	assert.ErrorIs(t, err, errors.ErrIndexNotFound)
 }
 
+func TestManagerBuildIndexHNSW(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	// Create test index
+	config := &IndexConfig{
+		IndexType: HNSWIndex,
+		Dimension: 4,
+		SpaceType: L2Space,
+	}
+	_, err := manager.CreateIndex("test_collection", config)
+	assert.NoError(t, err)
+
+	// Build index with a batch of vectors
+	ids, vectors := generateVectors(10, 4)
+	err = manager.BuildIndex("test_collection", ids, vectors)
+	assert.NoError(t, err)
+
+	// Retrieve index and verify search results
+	idx, err := manager.GetIndex("test_collection")
+	assert.NoError(t, err)
+	res, err := idx.Search(vectors[6], 3)
+	assert.NoError(t, err)
+	assert.Greater(t, len(res.IDs), 0)
+	assert.Equal(t, ids[6], res.IDs[0])
+}
+
+func TestManagerBuildIndexIVF(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	dim := 4
+	// Create test IVF index
+	cfg := &IndexConfig{
+		IndexType: IVFIndex,
+		Dimension: dim,
+		SpaceType: L2Space,
+		Parameters: map[string]interface{}{
+			"nlist":  float64(4),
+			"nprobe": float64(2),
+		},
+	}
+	_, err := manager.CreateIndex("ivf_collection", cfg)
+	assert.NoError(t, err)
+
+	ids, vectors := generateVectors(20, dim)
+	err = manager.BuildIndex("ivf_collection", ids, vectors)
+	assert.NoError(t, err)
+
+	idx, err := manager.GetIndex("ivf_collection")
+	assert.NoError(t, err)
+
+	res, err := idx.Search(vectors[10], 3)
+	assert.NoError(t, err)
+	assert.Len(t, res.IDs, 3)
+	assert.Equal(t, ids[10], res.IDs[0])
+}
+
 func TestManagerVectorOperations(t *testing.T) {
 	manager, cleanup := setupTestManager(t)
 	defer cleanup()

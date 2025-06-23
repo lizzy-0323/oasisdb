@@ -14,6 +14,13 @@ type Document struct {
 	Dimension  int            `json:"dimension"`
 }
 
+type batchData struct {
+	docKeys   [][]byte
+	docValues [][]byte
+	ids       []string
+	vectors   [][]float32
+}
+
 // UpsertDocument inserts or updates a document
 func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
 	// validate vector dimension
@@ -111,12 +118,11 @@ func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, fi
 	return docs, searchResult.Distances, nil
 }
 
-// BatchUpsertDocuments 批量插入或更新文档
-func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) error {
+func (db *DB) prepareBatchData(collectionName string, docs []*Document) (*batchData, error) {
 	// Get collection to validate dimension
 	collection, err := db.GetCollection(collectionName)
 	if err != nil {
-		return fmt.Errorf("failed to get collection: %w", err)
+		return nil, fmt.Errorf("failed to get collection: %w", err)
 	}
 
 	// Prepare batch data
@@ -129,7 +135,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 	for i, doc := range docs {
 		// Validate vector dimension
 		if len(doc.Vector) != collection.Dimension {
-			return fmt.Errorf("vector dimension mismatch for document %s: expected %d, got %d",
+			return nil, fmt.Errorf("vector dimension mismatch for document %s: expected %d, got %d",
 				doc.ID, collection.Dimension, len(doc.Vector))
 		}
 		doc.Dimension = collection.Dimension
@@ -138,7 +144,7 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 		docKey := fmt.Sprintf("doc:%s:%s", collectionName, doc.ID)
 		docData, err := json.Marshal(doc)
 		if err != nil {
-			return fmt.Errorf("failed to marshal document %s: %w", doc.ID, err)
+			return nil, fmt.Errorf("failed to marshal document %s: %w", doc.ID, err)
 		}
 
 		docKeys[i] = []byte(docKey)
@@ -147,26 +153,51 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 		vectors[i] = doc.Vector
 	}
 
+	return &batchData{
+		docKeys:   docKeys,
+		docValues: docValues,
+		ids:       ids,
+		vectors:   vectors,
+	}, nil
+}
+
+func (db *DB) BuildIndex(collectionName string, docs []*Document) error {
+	// Prepare batch data
+	batchData, err := db.prepareBatchData(collectionName, docs)
+	if err != nil {
+		return err
+	}
+
 	// Batch store document metadata
-	if err := db.Storage.BatchPutScalar(docKeys, docValues); err != nil {
+	if err := db.Storage.BatchPutScalar(batchData.docKeys, batchData.docValues); err != nil {
 		return fmt.Errorf("failed to batch store documents: %w", err)
 	}
 
-	// Batch update vector index
-	if err := db.IndexManager.AddVectorBatch(collectionName, ids, vectors); err != nil {
+	// Build index
+	if err := db.IndexManager.BuildIndex(collectionName, batchData.ids, batchData.vectors); err != nil {
 		return fmt.Errorf("failed to batch update vector index: %w", err)
 	}
 
 	return nil
 }
 
-// TODO: BatchDeleteDocuments 批量删除文档
-func (db *DB) BatchDeleteDocuments(collectionName string, ids []string) error {
-	// 1. 批量删除文档元数据
-	for _, id := range ids {
-		if err := db.DeleteDocument(collectionName, id); err != nil {
-			return err
-		}
+// BatchUpsertDocuments 批量插入或更新文档
+func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) error {
+	// Prepare batch data
+	batchData, err := db.prepareBatchData(collectionName, docs)
+	if err != nil {
+		return err
 	}
+
+	// Batch store document metadata
+	if err := db.Storage.BatchPutScalar(batchData.docKeys, batchData.docValues); err != nil {
+		return fmt.Errorf("failed to batch store documents: %w", err)
+	}
+
+	// Batch update vector index
+	if err := db.IndexManager.AddVectorBatch(collectionName, batchData.ids, batchData.vectors); err != nil {
+		return fmt.Errorf("failed to batch update vector index: %w", err)
+	}
+
 	return nil
 }

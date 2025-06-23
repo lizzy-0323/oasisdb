@@ -6,7 +6,6 @@ import (
 	"os"
 	"path"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 
@@ -110,8 +109,7 @@ func (m *Manager) reconstructIndex() error {
 			case HNSWIndex:
 				index, err = newHNSWIndex(createData.Config)
 			case IVFIndex:
-				// TODO: implement IVF index
-				continue
+				index, err = newIVFIndex(createData.Config)
 			default:
 				logger.Error("Unsupported index type", "file", entry.Name(), "type", createData.Config.IndexType)
 				continue
@@ -185,7 +183,6 @@ func (m *Manager) LoadIndexs() error {
 		case HNSWIndex:
 			index, err = newHNSWIndex(&config)
 		case IVFIndex:
-			// TODO: implement IVF index
 			index, err = newIVFIndex(&config)
 		default:
 			logger.Error("Unsupported index type", "collection", collectionName, "type", config.IndexType)
@@ -251,7 +248,7 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 	case HNSWIndex:
 		index, err = newHNSWIndex(config)
 	case IVFIndex:
-		// TODO: implement IVF index
+		index, err = newIVFIndex(config)
 	default:
 		return nil, errors.ErrUnsupportedIndexType
 	}
@@ -433,6 +430,38 @@ func (m *Manager) AddVector(collectionName string, id string, vector []float32) 
 	return nil
 }
 
+// BuildIndex builds an index with WAL support
+func (m *Manager) BuildIndex(collectionName string, ids []string, vectors [][]float32) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	// Set WAL writer
+	if err := m.setWalWriter(collectionName); err != nil {
+		return err
+	}
+
+	// Create WAL entry
+	buildData := BuildIndexData{
+		IDs:     ids,
+		Vectors: vectors,
+	}
+	dataBytes, err := json.Marshal(buildData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal build index data: %w", err)
+	}
+
+	entry := &WALEntry{
+		OpType:     WALOpBuildIndex,
+		Collection: collectionName,
+		Data:       dataBytes,
+	}
+
+	if err := m.ApplyOpWithWal(entry); err != nil {
+		return fmt.Errorf("failed to apply WAL entry: %w", err)
+	}
+	return nil
+}
+
 // AddVectorBatch adds multiple vectors to the specified index with WAL support
 func (m *Manager) AddVectorBatch(collectionName string, ids []string, vectors [][]float32) error {
 	m.mu.Lock()
@@ -515,6 +544,13 @@ func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
 	}
 
 	switch entry.OpType {
+	case WALOpBuildIndex:
+		var data BuildIndexData
+		if err := json.Unmarshal(entry.Data, &data); err != nil {
+			return fmt.Errorf("failed to unmarshal build index data: %w", err)
+		}
+		return index.Build(data.IDs, data.Vectors)
+
 	case WALOpAddVector:
 		var data AddVectorData
 		if err := json.Unmarshal(entry.Data, &data); err != nil {
@@ -539,11 +575,6 @@ func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
 	default:
 		return fmt.Errorf("unsupported WAL operation type: %s", entry.OpType)
 	}
-}
-
-func stringToInt32(str string) int32 {
-	i, _ := strconv.Atoi(str)
-	return int32(i)
 }
 
 func (m *Manager) setWalWriter(collectionName string) error {
