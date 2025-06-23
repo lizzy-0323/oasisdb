@@ -10,14 +10,14 @@ English | [简体中文](readmd-CN.md)
 
 OasisDB is a high-performance vector database designed for simplicity and ease of use. It enables efficient vector similarity search for your applications through both standalone deployment and RESTful API interfaces.
 
-I start this project for all the beginners to learn vector search very easily, and you can see the detail design ideas and related key knowledge in [design](docs/设计理念.md).
+I start this project for all the beginners to learn vector search very easily, and you can see the detail design ideas and related key knowledge in [design](docs/design.md).
 
 ## Features
 
 1. Multiple type of vector index: HNSW(hnswlib), IVF(faiss)
-2. Easy to use: standalone deployment as one process and RESTful API
+2. Lightweight: standalone deployment as one process, **do not have any internal network communication**.
 3. Embedding support: multiple embedding models
-4. Python HTTP client: help you to contact with OasisDB easily
+4. Easy to use: RESTful API and Python SDK
 
 ## Architecture
 
@@ -29,6 +29,8 @@ I start this project for all the beginners to learn vector search very easily, a
 
 - Go 1.22+
 - CMake 3.22+
+- Python 3.10+
+- uv(optional)
 
 ### Build from source
 
@@ -37,15 +39,17 @@ make build
 ./bin/oasisdb
 ```
 
-### Run test
-
-```bash
-make test
-```
-
 ### Usage
 
-you can use http client to send request to oasisdb
+you can use http client to send request to oasisdb, and we choose uv to install python dependencies.
+
+```python
+from client import OasisDBClient
+client = OasisDBClient()
+client.health_check()
+```
+For more usage, please see [apidoc](docs/api.md),
+you can also use [example.py](example.py) to see how to use it.
 
 ## Contribution
 

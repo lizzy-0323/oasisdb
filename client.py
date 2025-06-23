@@ -104,7 +104,7 @@ class OasisDBClient:
         name: str,
         dimension: int,
         *,
-        index_type: str = "",
+        index_type: str = "hnsw",
         parameters: Optional[Mapping[str, str]] = None,
     ) -> Dict[str, Any]:
         payload = {

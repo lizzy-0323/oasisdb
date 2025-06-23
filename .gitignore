@@ -1,4 +1,5 @@
 .vscode
+.venv
 .DS_Store
 build
 bin

@@ -1,5 +1,4 @@
 # release.yml
-# TODO: add release workflow
 name: Release
 
 on:
@@ -15,10 +14,12 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: "1.20"
+          go-version: "1.22"
       - name: Build
         run: make build
       - name: Test
         run: make test
       - name: Release
         run: |
+          git tag ${{ github.ref_name }}
+          git push origin ${{ github.ref_name }}

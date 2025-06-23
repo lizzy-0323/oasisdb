@@ -43,7 +43,7 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 		return nil, fmt.Errorf("dimension must be positive")
 	}
 	if opts.IndexType == "" {
-		opts.IndexType = "hnsw" // default to HNSW
+		opts.IndexType = string(index.HNSWIndex) // default to HNSW
 	}
 
 	// Check if collection exists

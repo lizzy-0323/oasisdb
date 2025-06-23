@@ -6,8 +6,7 @@ It will:
   2. Create a collection called 'demo'.
   3. Upsert a few documents.
   4. Perform a vector and a document search.
-  5. List existing collections.
-  6. Clean up by deleting the collection.
+  5. Clean up by deleting the collection.
 
 Usage
 -----
@@ -36,19 +35,19 @@ def main() -> None:
             sys.exit(1)
 
         # 2. Create collection
-        coll = client.create_collection("demo", dimension=3)
+        coll = client.create_collection("demo", dimension=128)
         print("Created collection:", coll)
 
         # 3. Upsert documents
         docs = [
-            {"id": f"{i}", "vector": random_vector(3)}
-            for i in range(5)
+            {"id": f"{i}", "vector": random_vector(128)}
+            for i in range(10)
         ]
-        client.batch_upsert_documents("demo", docs)
+        client.build_index("demo", docs)
         print("Upserted", len(docs), "documents")
 
         # 4a. Vector search
-        query_vec = random_vector(3)
+        query_vec = random_vector(128)
         vec_results = client.search_vectors("demo", query_vec, limit=3)
         print("Vector search results:", vec_results)
 
@@ -58,14 +57,10 @@ def main() -> None:
         )
         print("Document search results:", doc_results)
 
-        # 5. List collections
-        colls = client.list_collections()
-        print("Existing collections:", colls)
-
     except OasisDBError as e:
         print("Server returned error:", e)
     finally:
-        # 6. Clean up
+        # 5. Clean up
         try:
             client.delete_collection("demo")
             print("Deleted collection 'demo'")
