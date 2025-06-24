@@ -23,6 +23,22 @@ type batchData struct {
 
 // UpsertDocument inserts or updates a document
 func (db *DB) UpsertDocument(collectionName string, doc *Document) error {
+	// handle automatic embedding generation if requested
+	if doc.Parameters != nil {
+		if flag, ok := doc.Parameters["embedding"].(bool); ok && flag && len(doc.Vector) == 0 {
+			text, okText := doc.Parameters["text"].(string)
+			if !okText {
+				return fmt.Errorf("text parameter is required for embedding when vector is not provided")
+			}
+			vec64, err := db.conf.EmbeddingProvider.Embed(text)
+			if err != nil {
+				return fmt.Errorf("failed to generate embedding: %w", err)
+			}
+			doc.Vector = float64SliceTo32(vec64)
+			doc.Dimension = len(doc.Vector)
+		}
+	}
+
 	// validate vector dimension
 	if len(doc.Vector) != doc.Dimension {
 		return fmt.Errorf("vector dimension mismatch: expected %d, got %d", doc.Dimension, len(doc.Vector))
@@ -133,6 +149,22 @@ func (db *DB) prepareBatchData(collectionName string, docs []*Document) (*batchD
 
 	// Validate and prepare data
 	for i, doc := range docs {
+		// Automatic embedding generation for batch docs
+		if doc.Parameters != nil {
+			if flag, ok := doc.Parameters["embedding"].(bool); ok && flag && len(doc.Vector) == 0 {
+				text, okText := doc.Parameters["text"].(string)
+				if !okText {
+					return nil, fmt.Errorf("text parameter is required for embedding when vector is not provided for document %s", doc.ID)
+				}
+				vec64, err := db.conf.EmbeddingProvider.Embed(text)
+				if err != nil {
+					return nil, fmt.Errorf("failed to generate embedding for document %s: %w", doc.ID, err)
+				}
+				doc.Vector = float64SliceTo32(vec64)
+				doc.Dimension = len(doc.Vector)
+			}
+		}
+
 		// Validate vector dimension
 		if len(doc.Vector) != collection.Dimension {
 			return nil, fmt.Errorf("vector dimension mismatch for document %s: expected %d, got %d",
@@ -200,4 +232,13 @@ func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) erro
 	}
 
 	return nil
+}
+
+// float64SliceTo32 converts a slice of float64 to float32
+func float64SliceTo32(src []float64) []float32 {
+	res := make([]float32, len(src))
+	for i, v := range src {
+		res[i] = float32(v)
+	}
+	return res
 }

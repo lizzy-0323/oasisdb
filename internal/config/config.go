@@ -3,6 +3,8 @@ package config
 import (
 	"errors"
 	"io/fs"
+	"oasisdb/internal/embedding"
+	"oasisdb/internal/embedding/provider"
 	"oasisdb/internal/storage/filter"
 	"oasisdb/internal/storage/memtable"
 	"os"
@@ -27,6 +29,7 @@ type Config struct {
 
 	Filter              filter.Filter
 	MemTableConstructor memtable.MemTableConstructor
+	EmbeddingProvider   embedding.EmbeddingProvider
 }
 type ConfigOption func(*Config)
 
@@ -72,7 +75,9 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 	if c.MemTableConstructor == nil {
 		c.MemTableConstructor = memtable.NewSkipList
 	}
-
+	if c.EmbeddingProvider == nil {
+		c.EmbeddingProvider, _ = provider.NewAliyunEmbeddingProvider()
+	}
 	return &c, c.Check()
 }
 
