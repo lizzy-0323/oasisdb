@@ -3,8 +3,6 @@
 ARCH_LIST=("amd64" "arm64")
 OS_LIST=("linux" "darwin")
 
-VERSION="v0.1.0"
-
 echo "Creating release..."
 for os in "${OS_LIST[@]}"; do
     for arch in "${ARCH_LIST[@]}"; do
