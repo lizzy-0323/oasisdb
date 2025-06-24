@@ -8,7 +8,7 @@
 
 English | [简体中文](readme-CN.md)
 
-OasisDB is a high-performance vector database designed for ease of use. It enables efficient vector similarity search for your applications through both standalone deployment and RESTful API interfaces, different from other vector databases, it has not internal network communication, which makes it more lightweight and easier to deploy.
+OasisDB is a high-performance vector database designed for ease of use. It enables efficient vector similarity search for your applications through both standalone deployment and RESTful API interfaces, different from other vector databases, it is **less than 20M**!! And it has no internal network communication, which makes it more lightweight and easier to deploy.
 
 I start this project for all the beginners to learn vector search very easily, and you can see the detail design ideas and related key knowledge in [design](docs/design.md).
 
