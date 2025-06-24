@@ -89,7 +89,6 @@ func (db *DB) CreateCollection(opts *CreateCollectionOptions) (*Collection, erro
 	return collection, nil
 }
 
-// TODO: GetCollection gets a collection
 func (db *DB) GetCollection(name string) (*Collection, error) {
 	key := fmt.Sprintf("collection:%s", name)
 	data, exists, err := db.Storage.GetScalar([]byte(key))
