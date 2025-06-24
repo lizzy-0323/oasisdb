@@ -1,4 +1,4 @@
-all: clean build test lint run help
+all: clean build test lint run release help
 
 BINARY_NAME := oasisdb
 OS := $(shell go env GOOS)
@@ -32,6 +32,11 @@ build: engine
 	mkdir -p bin
 	GOOS=${OS} GOARCH=${ARCH} $(GOBUILD) -o bin/${BINARY_NAME} ${MAIN_PACKAGE}
 
+release: 
+	@echo "Building release..."
+	./script/create_release.sh
+	
+
 docker-build:
 	@echo "Building docker image..."
 	docker build -t ${BINARY_NAME}:latest -f Dockerfile .
@@ -50,7 +55,7 @@ lint:
 
 help:
 	@echo "Available targets:"
-	@echo "  all: Clean, build, test, lint, run"
+	@echo "  all: Clean, build, test, lint, run, release"
 	@echo "  clean: Clean up the build directory"
 	@echo "  build: Build the application"
 	@echo "  test: Run tests"
@@ -60,4 +65,4 @@ help:
 	@echo "  run: Run the application"
 	@echo "  help: Show this help message"
 
-.PHONY: all test clean engine build lint run docker-build docker-run help
+.PHONY: all test clean engine build lint run docker-build docker-run release help
