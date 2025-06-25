@@ -47,11 +47,14 @@ type SearchResult struct {
 }
 
 type SearchDocumentRequest struct {
-	Vector []float32              `json:"vector"`
-	Limit  int                    `json:"limit"`
-	Filter map[string]interface{} `json:"filter"`
+	Vector []float32      `json:"vector"`
+	Limit  int            `json:"limit"`
+	Filter map[string]any `json:"filter"`
 }
 
+type SetParamsRequest struct {
+	Parameters map[string]any `json:"parameters"`
+}
 type SearchVectorRequest struct {
 	Vector []float32 `json:"vector"`
 	Limit  int       `json:"limit"`

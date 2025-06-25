@@ -35,6 +35,9 @@ type VectorIndex interface {
 	// Search performs a k-NN search
 	Search(vector []float32, k int) (*SearchResult, error)
 
+	// SetParams sets index parameters
+	SetParams(params map[string]any) error
+
 	// Load loads the index from disk
 	Load(filePath string) error
 

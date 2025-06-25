@@ -283,6 +283,39 @@ func (s *Server) handleBatchUpsertDocuments() gin.HandlerFunc {
 	}
 }
 
+// handleSetParams adjusts search parameters for a collection's vector index.
+// Currently supported parameters:
+//   - efsearch : HNSW indices (improves recall at the cost of speed)
+//   - nprobe   : IVF indices  (controls the number of inverted lists scanned)
+func (s *Server) handleSetParams() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		collectionName := c.Param("name")
+
+		var req SetParamsRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		idx, err := s.db.IndexManager.GetIndex(collectionName)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if err := idx.SetParams(req.Parameters); err != nil {
+			if errors.Is(err, pkgerrors.ErrInvalidParameter) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
+			return
+		}
+
+		c.Status(http.StatusOK)
+	}
+}
+
 func (s *Server) Run(addr string) {
 	s.router.Run(addr)
 }

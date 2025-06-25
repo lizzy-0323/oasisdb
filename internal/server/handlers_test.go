@@ -599,3 +599,67 @@ func TestHandleSearchVectors(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
+
+func TestHandleSetParams(t *testing.T) {
+	server, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	// ---------- HNSW collection ----------
+	hnswReq := CreateCollectionRequest{
+		Name:      "hnsw_coll",
+		IndexType: "hnsw",
+		Dimension: 3,
+	}
+	body, err := json.Marshal(hnswReq)
+	assert.NoError(t, err)
+	w := httptest.NewRecorder()
+	r := httptest.NewRequest(http.MethodPost, "/v1/collections", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// valid efsearch param
+	paramReq := SetParamsRequest{Parameters: map[string]any{"efsearch": 64}}
+	body, err = json.Marshal(paramReq)
+	assert.NoError(t, err)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/hnsw_coll/documents/setparams", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// invalid nprobe on hnsw (should fail)
+	paramReq = SetParamsRequest{Parameters: map[string]any{"nprobe": 5}}
+	body, _ = json.Marshal(paramReq)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/hnsw_coll/documents/setparams", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// ---------- IVF collection ----------
+	ivfReq := CreateCollectionRequest{
+		Name:      "ivf_coll",
+		IndexType: "ivf",
+		Dimension: 3,
+	}
+	body, err = json.Marshal(ivfReq)
+	assert.NoError(t, err)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// valid nprobe param
+	paramReq = SetParamsRequest{Parameters: map[string]any{"nprobe": 20}}
+	body, _ = json.Marshal(paramReq)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/ivf_coll/documents/setparams", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// invalid efsearch on ivf (should fail)
+	paramReq = SetParamsRequest{Parameters: map[string]any{"efsearch": 128}}
+	body, _ = json.Marshal(paramReq)
+	w = httptest.NewRecorder()
+	r = httptest.NewRequest(http.MethodPost, "/v1/collections/ivf_coll/documents/setparams", bytes.NewReader(body))
+	server.router.ServeHTTP(w, r)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}

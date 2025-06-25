@@ -171,11 +171,12 @@ func (idx *Index) BatchSearchKnn(queries [][]float32, k int, numGoroutines int) 
 	return labelList, distList, nil
 }
 
-func (idx *Index) SetEf(ef int) {
+func (idx *Index) SetEf(ef int) error {
 	if idx.index == nil {
-		return
+		return fmt.Errorf("index is not initialized")
 	}
 	C.hnsw_set_ef(idx.index, C.size_t(ef))
+	return nil
 }
 
 func (idx *Index) SaveIndex(path string) error {

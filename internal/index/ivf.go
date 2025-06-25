@@ -351,3 +351,39 @@ func kMeans(data [][]float32, k, dim, maxIter int) [][]float32 {
 	}
 	return centroids
 }
+
+func (ivf *ivfIndex) SetParams(params map[string]any) error {
+	if len(params) == 0 {
+		return pkgerrors.ErrEmptyParameter
+	}
+
+	for key, val := range params {
+		switch key {
+		case "nprobe":
+			var ival int
+			switch v := val.(type) {
+			case int:
+				ival = v
+			case float64:
+				ival = int(v)
+			default:
+				return pkgerrors.ErrInvalidParameter
+			}
+			if err := ivf.SetNProbe(ival); err != nil {
+				return err
+			}
+		default:
+			return pkgerrors.ErrInvalidParameter
+		}
+	}
+
+	return nil
+}
+
+func (ivf *ivfIndex) SetNProbe(nprobe int) error {
+	if nprobe <= 0 || nprobe > ivf.nlist {
+		return pkgerrors.ErrInvalidParameter
+	}
+	ivf.nprobe = nprobe
+	return nil
+}
