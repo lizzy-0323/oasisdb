@@ -50,6 +50,7 @@ Parameter description:
 | `get_document(collection, doc_id)` | `dict` | Get a single document |
 | `delete_document(collection, doc_id)` | `None` | Delete a single document |
 | `build_index(collection, documents)` | `None` | Build index offline |
+| `set_params(collection, parameters)` | `None` | Adjust index/search parameters |
 | `search_vectors(collection, vector, *, limit=10)` | `dict` | Return vector-only nearest-neighbor results |
 | `search_documents(collection, vector, *, limit=10, filter=None)` | `dict` | Return document results with optional filter |
 
@@ -159,6 +160,24 @@ build_index(collection: str, documents: Iterable[Mapping[str, Any]]) -> None
 ```
 
 Build the index on the server side offline; useful when you import a large dataset and then build the index in one shot.
+
+---
+
+---
+
+### `set_params()`
+
+```python
+set_params(collection: str, parameters: Mapping[str, Any]) -> None
+```
+
+Set runtime search or index parameters (e.g. ``{"efsearch": 128}``) for the specified collection.
+
+Example:
+
+```python
+client.set_params("movies", {"efsearch": 128})
+```
 
 ---
 
