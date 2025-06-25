@@ -168,6 +168,27 @@ class OasisDBClient:
             "POST", f"/v1/collections/{collection}/buildindex", json={"documents": list(documents)}
         )
 
+    def set_params(
+        self,
+        collection: str,
+        parameters: Mapping[str, Any],
+    ) -> None:
+        """Set search/index parameters for a collection.
+
+        Parameters
+        ----------
+        collection:
+            Target collection name.
+        parameters:
+            Dictionary of parameter name → value pairs (e.g. ``{"efsearch": 128}``).
+        """
+        payload = {"parameters": parameters}
+        self._request(
+            "POST",
+            f"/v1/collections/{collection}/documents/setparams",
+            json=payload,
+        )
+
     # Search ------------------------------------------------------------
     def search_vectors(
         self,

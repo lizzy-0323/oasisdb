@@ -50,6 +50,7 @@ OasisDBClient(
 | `get_document(collection, doc_id)` | `dict` | 查询单条文档 |
 | `delete_document(collection, doc_id)` | `None` | 删除单条文档 |
 | `build_index(collection, documents)` | `None` | 离线构建索引 |
+| `set_params(collection, parameters)` | `None` | 调整索引/搜索参数 |
 | `search_vectors(collection, vector, *, limit=10)` | `dict` | 仅返回向量近邻结果 |
 | `search_documents(collection, vector, *, limit=10, filter=None)` | `dict` | 返回文档近邻结果，可附带过滤条件 |
 
@@ -159,6 +160,24 @@ build_index(collection: str, documents: Iterable[Mapping[str, Any]]) -> None
 ```
 
 在服务器端离线构建索引，适用于一次性导入大量数据后统一建立索引的场景。
+
+---
+
+---
+
+### `set_params()`
+
+```python
+set_params(collection: str, parameters: Mapping[str, Any]) -> None
+```
+
+为指定集合设置运行时搜索或索引参数，例如 ``{"efsearch": 128}``。
+
+示例：
+
+```python
+client.set_params("movies", {"efsearch": 128})
+```
 
 ---
 
