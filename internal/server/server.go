@@ -30,6 +30,7 @@ func (s *Server) setupRoutes() {
 	s.router.GET("/v1/collections", s.handleListCollections())
 
 	s.router.POST("/v1/collections/:name/documents", s.handleUpsertDocument())
+	s.router.POST("/v1/collections/:name/documents/setparams", s.handleSetParams())
 	s.router.GET("/v1/collections/:name/documents/:id", s.handleGetDocument())
 	s.router.DELETE("/v1/collections/:name/documents/:id", s.handleDeleteDocument())
 	s.router.POST("/v1/collections/:name/vectors/search", s.handleSearchVectors())

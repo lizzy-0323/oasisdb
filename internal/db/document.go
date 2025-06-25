@@ -213,7 +213,6 @@ func (db *DB) BuildIndex(collectionName string, docs []*Document) error {
 	return nil
 }
 
-// BatchUpsertDocuments 批量插入或更新文档
 func (db *DB) BatchUpsertDocuments(collectionName string, docs []*Document) error {
 	// Prepare batch data
 	batchData, err := db.prepareBatchData(collectionName, docs)

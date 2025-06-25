@@ -154,6 +154,41 @@ func (h *hnswIndex) Close() error {
 	return nil
 }
 
+func (h *hnswIndex) SetParams(params map[string]any) error {
+	if len(params) == 0 {
+		return errors.ErrEmptyParameter
+	}
+
+	for key, val := range params {
+		switch key {
+		case "efsearch":
+			var ival int
+			switch v := val.(type) {
+			case int:
+				ival = v
+			case float64:
+				ival = int(v)
+			default:
+				return errors.ErrInvalidParameter
+			}
+			if err := h.SetEfSearch(ival); err != nil {
+				return err
+			}
+		default:
+			// unknown parameter
+			return errors.ErrInvalidParameter
+		}
+	}
+	return nil
+}
+
+func (h *hnswIndex) SetEfSearch(ef int) error {
+	if h.index == nil {
+		return fmt.Errorf("index is not initialized")
+	}
+	return h.index.SetEf(ef)
+}
+
 // stringToID converts a string ID to int64
 func stringToID(id string) int64 {
 	var n int64
