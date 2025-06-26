@@ -48,6 +48,7 @@ from client import OasisDBClient
 client = OasisDBClient()
 client.health_check()
 ```
+
 For more usage, please see [apidoc](docs/api.md),
 you can also use [example.py](example.py) to see how to use it.
 
