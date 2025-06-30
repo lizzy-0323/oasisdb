@@ -30,6 +30,7 @@ In summary, it can be divided into the following parts:
 2. LRU Cache
 3. Vector Storage
 4. Scalar Storage
+5. Embedding Service (Optional)
 
 Among these, the essential parts are Vector Storage and Scalar Storage. We can simply consider a standalone vector database to be composed of these two parts.
 
@@ -40,6 +41,8 @@ The LRU Cache is mainly for caching popular vector searches. This cache should n
 Vector Storage is primarily for storing vector indexes and saving them. I've implemented both HNSW index based on hnswlib and IVF index for different scenarios. The IVF index has lower accuracy but works well for small-scale, high-dimensional data, while HNSW is the opposite. The HNSW index code is in the `internal/engine` directory, and the IVF index code is in the `internal/ivf` directory.
 
 Scalar Storage is mainly for storing vector metadata, which can be implemented with a KV store. I've implemented a KV storage based on the LSM tree, with code in the `internal/storage` directory.
+
+Embedding Service is mainly for providing vector embedding functionality. To make the user experience better, this is an optional feature, and I only support the vector embedding service provided by Alibaba Cloud. The code is in the `internal/embedding` directory.
 
 ## Technology Selection
 
