@@ -106,32 +106,54 @@ func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int)
 	return searchResult.IDs, searchResult.Distances, nil
 }
 
+
 // SearchDocuments returns top-k documents and distances
-func (db *DB) SearchDocuments(collectionName string, vector []float32, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
-	// 1. get index
-	index, err := db.IndexManager.GetIndex(collectionName)
-	if err != nil {
-		return nil, nil, err
-	}
+func (db *DB) SearchDocuments(collectionName string, queryDoc *Document, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
+    // Handle automatic embedding generation if requested
+    if queryDoc.Parameters != nil {
+        if flag, ok := queryDoc.Parameters["embedding"].(bool); ok && flag && len(queryDoc.Vector) == 0 {
+            text, okText := queryDoc.Parameters["text"].(string)
+            if !okText {
+                return nil, nil, fmt.Errorf("text parameter is required for embedding when vector is not provided")
+            }
+            vec64, err := db.conf.EmbeddingProvider.Embed(text)
+            if err != nil {
+                return nil, nil, fmt.Errorf("failed to generate embedding: %w", err)
+            }
+            queryDoc.Vector = float64SliceTo32(vec64)
+            queryDoc.Dimension = len(queryDoc.Vector)
+        }
+    }
 
-	// 2. search using hnsw index
-	searchResult, err := index.Search(vector, k)
-	if err != nil {
-		return nil, nil, err
-	}
+    // Validate that query document has a vector
+    if len(queryDoc.Vector) == 0 {
+        return nil, nil, fmt.Errorf("query document must have a vector or embedding parameters")
+    }
 
-	// 3. get documents by ids
-	docs := make([]*Document, len(searchResult.IDs))
-	for i, id := range searchResult.IDs {
-		doc, err := db.GetDocument(collectionName, id)
-		if err != nil {
-			return nil, nil, err
-		}
-		docs[i] = doc
-	}
+    // 1. get index
+    index, err := db.IndexManager.GetIndex(collectionName)
+    if err != nil {
+        return nil, nil, err
+    }
 
-	// 4. return documents
-	return docs, searchResult.Distances, nil
+    // 2. search using hnsw index
+    searchResult, err := index.Search(queryDoc.Vector, k)
+    if err != nil {
+        return nil, nil, err
+    }
+
+    // 3. get documents by ids
+    docs := make([]*Document, len(searchResult.IDs))
+    for i, id := range searchResult.IDs {
+        doc, err := db.GetDocument(collectionName, id)
+        if err != nil {
+            return nil, nil, err
+        }
+        docs[i] = doc
+    }
+
+    // 4. return documents
+    return docs, searchResult.Distances, nil
 }
 
 func (db *DB) prepareBatchData(collectionName string, docs []*Document) (*batchData, error) {
