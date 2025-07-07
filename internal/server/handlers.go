@@ -241,28 +241,47 @@ func (s *Server) handleDeleteDocument() gin.HandlerFunc {
 }
 
 func (s *Server) handleSearchDocuments() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		collectionName := c.Param("name")
-		var req SearchDocumentRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+    return func(c *gin.Context) {
+        collectionName := c.Param("name")
+        var req SearchDocumentRequest
+        if err := c.ShouldBindJSON(&req); err != nil {
+            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+            return
+        }
 
-		docs, distances, err := s.db.SearchDocuments(collectionName, req.Vector, req.Limit, req.Filter)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
+        // Create query document from request
+        queryDoc := &DB.Document{
+            Vector:    req.Vector,
+            Dimension: len(req.Vector),
+        }
 
-		// Prepare response
-		response := gin.H{
-			"documents": docs,
-			"distances": distances,
-		}
+        // Call SearchDocuments with query document and correct field names
+        results, distances, err := s.db.SearchDocuments(collectionName, queryDoc, req.Limit, req.Filter)
+        if err != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+            return
+        }
 
-		c.JSON(http.StatusOK, response)
-	}
+        // Convert results to response format
+        docs := make([]map[string]interface{}, len(results))
+        for i, doc := range results {
+            docs[i] = map[string]interface{}{
+                "id":         doc.ID,
+                "vector":     doc.Vector,
+                "parameters": doc.Parameters,
+                "dimension":  doc.Dimension,
+                "distance":   distances[i],
+            }
+        }
+
+        // Prepare response
+        response := gin.H{
+            "documents": docs,
+            "distances": distances,
+        }
+
+        c.JSON(http.StatusOK, response)
+    }
 }
 
 func (s *Server) handleBatchUpsertDocuments() gin.HandlerFunc {
