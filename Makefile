@@ -60,6 +60,7 @@ help:
 	@echo "  build: Build the application"
 	@echo "  test: Run tests"
 	@echo "  lint: Run linter"
+	@echo "  release: Build all binary releases"
 	@echo "  docker-build: Build Docker image"
 	@echo "  docker-run: Run container exposing port 8080"
 	@echo "  run: Run the application"
