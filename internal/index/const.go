@@ -9,6 +9,8 @@ const (
 const (
 	HNSWIndex IndexType = "hnsw"
 	IVFIndex  IndexType = "ivf"
+	// add FLATIndex
+	FLATIndex IndexType = "flat"
 )
 
 // HNSW specific constants
