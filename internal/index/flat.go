@@ -1,5 +1,9 @@
 package index
 
+// Target:
+// 1. delete the helper function
+// 2. put config *IndexConfig(hnsw.go and ivf.go)
+
 import (
 	"encoding/gob"
 	pkgerrors "oasisdb/pkg/errors"
@@ -12,6 +16,7 @@ type FlatIndex struct {
 	Data    []float32
 	Ids     []string
 	IdToIdx map[string]int
+	config  *IndexConfig
 }
 
 // 构造函数
@@ -24,6 +29,7 @@ func newFlatIndex(config *IndexConfig) (VectorIndex, error) {
 		Ids:     make([]string, 0),    // 初始化ID切片
 		Data:    make([]float32, 0),   // 初始化向量连续内存
 		IdToIdx: make(map[string]int), // 初始化ID到下标的映射
+		config:  config,               // 保存配置
 	}, nil
 }
 
@@ -113,7 +119,7 @@ func (f *FlatIndex) Search(vector []float32, k int) (*SearchResult, error) {
 		end := start + f.Dim
 		searchVector := f.Data[start:end]
 
-		dist := l2Distance(vector, searchVector)
+		dist := distance(vector, searchVector, f.config.SpaceType)
 		results = append(results, pair{f.Ids[i], dist})
 	}
 	sort.Slice(results, func(i, j int) bool { return results[i].dist < results[j].dist })
@@ -158,17 +164,7 @@ func (f *FlatIndex) Save(filePath string) error {
 	return enc.Encode(f)
 }
 
-// Close 释放资源（flat实现可忽略）
+// Close release resource 
 func (f *FlatIndex) Close() error {
 	return nil
-}
-
-// l2Distance 计算欧氏距离
-func l2Distance(a, b []float32) float32 {
-	var sum float32
-	for i := range a {
-		diff := a[i] - b[i]
-		sum += diff * diff
-	}
-	return sum
 }
