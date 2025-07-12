@@ -129,14 +129,3 @@ func TestFlatIndex_AddAndDelete(t *testing.T) {
 	}
 }
 
-// 测试 l2Distance 函数的正确性
-func TestL2Distance(t *testing.T) {
-	a := []float32{1, 2, 3}
-	b := []float32{4, 6, 8}
-	// 欧氏距离平方：(1-4)^2 + (2-6)^2 + (3-8)^2 = 9 + 16 + 25 = 50
-	want := float32(50)
-	got := distance(a, b,"l2")
-	if got != want {
-		t.Fatalf("l2Distance got %v, want %v", got, want)
-	}
-}

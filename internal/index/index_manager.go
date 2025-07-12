@@ -184,6 +184,8 @@ func (m *Manager) LoadIndexs() error {
 			index, err = newHNSWIndex(&config)
 		case IVFIndex:
 			index, err = newIVFIndex(&config)
+		case FLATIndex:
+			index, err = newFlatIndex(&config)
 		default:
 			logger.Error("Unsupported index type", "collection", collectionName, "type", config.IndexType)
 			continue
