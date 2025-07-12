@@ -1,7 +1,7 @@
 # OasisDB
 
 [![Coverage Status](https://coveralls.io/repos/github/lizzy-0323/oasisdb/badge.svg?branch=main)](https://coveralls.io/github/lizzy-0323/oasisdb?branch=main)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 <!-- ![logo](./docs/images/logo.png) -->
 
 <!-- [![Build](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml/badge.svg)](https://github.com/lizzy-0323/oasisdb/actions/workflows/push_pr.yml) -->
@@ -12,18 +12,18 @@ OasisDB is a high-performance vector database designed for ease of use. It enabl
 
 I start this project for all the beginners to learn vector search very easily, and you can see the detail design ideas and related key knowledge in [design](docs/design.md).
 
-## Features
+## ✨ Features
 
-1. Multiple type of vector index: HNSW(hnswlib), IVF(pure Go)
+1. Multiple type of vector index: HNSW(hnswlib), IVF, Flat and so on.
 2. Lightweight: standalone deployment as one process, **do not have any internal network communication**.
 3. Embedding support: currently support aliyun embedding service, you can refer the embedding docs in [embedding](docs/embedding.md)
-4. Easy to use: RESTful API for HTTP and Client SDK for Python
+4. Easy to use: RESTful API for HTTP and Client SDK for Python and Go in `client-sdk`.
 
-## Architecture
+## 🏗️ Architecture
 
 ![Architecture](./docs/images/architecture.png)
 
-## Quick Start
+## 🚀 Quick Start
 
 ### Prerequisites
 
@@ -52,7 +52,7 @@ client.health_check()
 For more usage, please see [apidoc](docs/api.md),
 you can also use [example.py](example.py) to see how to use it.
 
-## Contribution
+## 🤝 Contribution
 
 I welcome any contributions to this project. before contributing, please open an issue to discuss the changes you want to make.
 
@@ -63,6 +63,10 @@ make test
 make lint
 ```
 
-## License
+The contributors of this project:
 
-[MIT License](LICENSE)
+[![contributors](https://contrib.rocks/image?repo=lizzy-0323/oasisdb)](https://github.com/lizzy-0323/oasisdb/graphs/contributors)
+
+## 📝 License
+
+OasisDB is licensed under [Apache 2.0 License](LICENSE)
