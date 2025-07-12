@@ -135,7 +135,7 @@ func TestL2Distance(t *testing.T) {
 	b := []float32{4, 6, 8}
 	// 欧氏距离平方：(1-4)^2 + (2-6)^2 + (3-8)^2 = 9 + 16 + 25 = 50
 	want := float32(50)
-	got := l2Distance(a, b)
+	got := distance(a, b,"l2")
 	if got != want {
 		t.Fatalf("l2Distance got %v, want %v", got, want)
 	}
