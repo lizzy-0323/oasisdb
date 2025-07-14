@@ -2,6 +2,7 @@ package internal
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"log"
 	"oasisdb/client-sdk/Go/client"
@@ -9,6 +10,8 @@ import (
 	"oasisdb/internal/embedding/provider"
 	"os"
 	"strings"
+
+	"google.golang.org/genai"
 )
 
 // RAG 结构体定义了一个RAG系统
@@ -107,6 +110,7 @@ func (r *RAG) InitializeKnowledgeBase() error {
 
 	// 将知识转换为向量并存储
 	for i, text := range knowledgeData {
+		id := fmt.Sprintf("%d", i) // 或者 "doc%d"
 		vector, err := r.TextToVector(text)
 		if err != nil {
 			return fmt.Errorf("failed to convert text to vector: %w", err)
@@ -114,7 +118,7 @@ func (r *RAG) InitializeKnowledgeBase() error {
 		fmt.Printf("upsert vector length: %d\n", len(vector))
 		// 构造文档参数
 		params := map[string]any{"text": text}
-		_, err = r.Client.UpsertDocument(r.CollectionName, fmt.Sprintf("doc%d", i+1), vector, params)
+		_, err = r.Client.UpsertDocument(r.CollectionName, id, vector, params)
 		if err != nil {
 			return fmt.Errorf("failed to upsert document: %w", err)
 		}
@@ -146,14 +150,37 @@ func (r *RAG) GetContextByIDs(ids []string) ([]string, error) {
 
 // CallLLM 调用LLM获取答案（模拟实现）
 func (r *RAG) CallLLM(question string, contexts []string) (string, error) {
-	// 这里应该调用真实的LLM API，现在用模拟实现
 	contextText := strings.Join(contexts, "\n")
+	
+	log.Printf("基于检索到的上下文信息：\n%s\n\n", contextText)
+	
+	prompt := fmt.Sprintf("基于检索到的上下文信息：\n%s\n\n回答 问题：%s", contextText, question)
+	
+	// 调用 Gemini API 生成答案
+	apiKey := os.Getenv("GCP_API_KEY")
+	if apiKey == "" {
+		return "", fmt.Errorf("gcp_api_key 环境变量未设置")
+	}
 
-	// 简单的模板回答
-	answer := fmt.Sprintf("基于检索到的上下文信息：\n%s\n\n问题：%s\n\n回答：根据以上信息，这是一个关于AI相关技术的问题。",
-		contextText, question)
-
-	return answer, nil
+	// create answer
+	ctx := context.Background()
+	client, err := genai.NewClient(ctx, &genai.ClientConfig{
+		APIKey:  apiKey,
+		Backend: genai.BackendGeminiAPI,
+	})
+	if err != nil {
+		return "", fmt.Errorf("gemini client 初始化失败: %w", err)
+	}
+	result, err := client.Models.GenerateContent(
+		ctx,
+		"gemini-2.0-flash",
+		genai.Text(prompt),
+		nil,
+	)
+	if err != nil {
+		return "", fmt.Errorf("gemini 生成内容失败: %w", err)
+	}
+	return result.Text(), nil
 }
 
 // GetUserInput 获取用户输入
