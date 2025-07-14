@@ -50,7 +50,7 @@ client.health_check()
 ```
 
 For more usage, please see [apidoc](docs/api.md),
-you can also use [example.py](example.py) to see how to use it.
+you can also use [example.py](client-sdk/python/example.py) to see how to use it. And now we also provide go client sdk, you can see the example in [example.go](client-sdk/go/example.go).
 
 ## 🤝 Contribution
 

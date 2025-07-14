@@ -32,11 +32,6 @@ build: engine
 	mkdir -p bin
 	GOOS=${OS} GOARCH=${ARCH} $(GOBUILD) -o bin/${BINARY_NAME} ${MAIN_PACKAGE}
 
-release: 
-	@echo "Building release..."
-	./script/create_release.sh
-	
-
 docker-build:
 	@echo "Building docker image..."
 	docker build -t ${BINARY_NAME}:latest -f Dockerfile .
@@ -60,7 +55,6 @@ help:
 	@echo "  build: Build the application"
 	@echo "  test: Run tests"
 	@echo "  lint: Run linter"
-	@echo "  release: Build all binary releases"
 	@echo "  docker-build: Build Docker image"
 	@echo "  docker-run: Run container exposing port 8080"
 	@echo "  run: Run the application"

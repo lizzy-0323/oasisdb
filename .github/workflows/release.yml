@@ -9,26 +9,32 @@ on:
 permissions:
   contents: write
 
+env:
+  tagName: ${{ github.ref_name }}
+  GO_VERSION: "1.22"
+
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set Version variables
+        id: set_version_vars
+        run: |
+          echo "version=$(echo $tagName | grep -P '(\d*\.\d*\.\d*)' --only-matching)" >> $GITHUB_OUTPUT
+
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: "1.22"
+          go-version: ${{ env.GO_VERSION }}
 
-      - name: Build release binaries (all OS/ARCH)
-        run: make release
-
-      - name: Run unit tests
-        run: make test
+      - name: go mod vendor
+        run: go mod vendor
 
       - name: Upload release assets
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            bin/*
+        run: |
+          ./script/create_release.sh ${{ env.tagName }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

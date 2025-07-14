@@ -1,0 +1,19 @@
+[project]
+name = "oasisdb-client"
+authors = [
+    {name = "Chris Lee", email = "liziyi0323xxx@gmail.com"}
+]
+version = "0.1.0"
+description = "Python client for OasisDB, a high-performance vector database designed for ease of use."
+readme = "../../README.md"
+requires-python = ">=3.10"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+py-modules = ["client", "example"]
+
+dependencies = [
+    "numpy>=1.20.0",
+    "requests>=2.25.0",
+    "pyyaml>=5.4.0"
+]
