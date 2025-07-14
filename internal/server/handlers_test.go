@@ -10,6 +10,7 @@ import (
 
 	"oasisdb/internal/config"
 	"oasisdb/internal/db"
+	"oasisdb/internal/index"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -464,7 +465,7 @@ func TestHandleBuildIndex(t *testing.T) {
 	// create collection first
 	collReq := CreateCollectionRequest{
 		Name:      "test_collection",
-		IndexType: "ivf",
+		IndexType: string(index.IVFFLATIndex),
 		Dimension: 3,
 	}
 	body, err := json.Marshal(collReq)
@@ -637,7 +638,7 @@ func TestHandleSetParams(t *testing.T) {
 	// ---------- IVF collection ----------
 	ivfReq := CreateCollectionRequest{
 		Name:      "ivf_coll",
-		IndexType: "ivf",
+		IndexType: string(index.IVFFLATIndex),
 		Dimension: 3,
 	}
 	body, err = json.Marshal(ivfReq)

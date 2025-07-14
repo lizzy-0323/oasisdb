@@ -11,7 +11,7 @@ OasisDB 是一款以易用性为核心的高性能向量数据库。它通过**�
 
 ## ✨ 功能特点
 
-1. 多种向量索引：HNSW (hnswlib)、IVF， Flat(纯 Go)等等
+1. 多种向量索引：HNSW (hnswlib)、IVFFlat， Flat等等
 2. 轻量级：单进程独立部署，**无内部网络通信**
 3. Embedding 支持：当前支持阿里云向量嵌入服务，详情见 [embedding](docs/embedding.md)
 4. 易于使用：提供 HTTP RESTful API 与 Python/Go 客户端 SDK
