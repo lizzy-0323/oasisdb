@@ -22,6 +22,14 @@ func distance(a, b []float32, space SpaceType) float32 {
             return 1.0 // maximal distance
         }
         return 1 - dot/float32(math.Sqrt(float64(na*nb)))
+    case HammingSpace:
+        var hamming float32
+        for i := range a {
+            if a[i] != b[i] {
+                hamming++
+            }
+        }
+        return hamming
     default: // L2
         var sum float32
         for i := range a {
