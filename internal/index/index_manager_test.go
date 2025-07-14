@@ -158,7 +158,7 @@ func TestManagerBuildIndexIVF(t *testing.T) {
 	dim := 4
 	// Create test IVF index
 	cfg := &IndexConfig{
-		IndexType: IVFIndex,
+		IndexType: IVFFLATIndex,
 		Dimension: dim,
 		SpaceType: L2Space,
 		Parameters: map[string]interface{}{

@@ -108,7 +108,7 @@ func (m *Manager) reconstructIndex() error {
 			switch createData.Config.IndexType {
 			case HNSWIndex:
 				index, err = newHNSWIndex(createData.Config)
-			case IVFIndex:
+			case IVFFLATIndex:
 				index, err = newIVFIndex(createData.Config)
 			default:
 				logger.Error("Unsupported index type", "file", entry.Name(), "type", createData.Config.IndexType)
@@ -182,7 +182,7 @@ func (m *Manager) LoadIndexs() error {
 		switch config.IndexType {
 		case HNSWIndex:
 			index, err = newHNSWIndex(&config)
-		case IVFIndex:
+		case IVFFLATIndex:
 			index, err = newIVFIndex(&config)
 		case FLATIndex:
 			index, err = newFlatIndex(&config)
@@ -249,7 +249,7 @@ func (m *Manager) CreateIndex(collectionName string, config *IndexConfig) (Vecto
 	switch config.IndexType {
 	case HNSWIndex:
 		index, err = newHNSWIndex(config)
-	case IVFIndex:
+	case IVFFLATIndex:
 		index, err = newIVFIndex(config)
 	default:
 		return nil, errors.ErrUnsupportedIndexType
