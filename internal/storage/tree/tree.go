@@ -89,14 +89,21 @@ func (t *LSMTree) Stop() {
 }
 
 func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
-	// 1. get lock
 	t.dataLock.RLock()
-
-	// 2. read active memtable
+	// 1. read active memtable
 	value, ok := t.memTable.Get(key)
 	if ok {
 		t.dataLock.RUnlock()
 		return value, true, nil
+	}
+
+	// 2. if not found in active memtable, check read only memtables
+	for i := len(t.rOnlyMemTables) - 1; i >= 0; i-- {
+		value, ok = t.rOnlyMemTables[i].memTable.Get(key)
+		if ok {
+			t.dataLock.RUnlock()
+			return value, true, nil
+		}
 	}
 	t.dataLock.RUnlock()
 
@@ -133,7 +140,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		}
 		t.levelLocks[level].RUnlock()
 	}
-	// 5. return not found
+	// 4. return if not found
 	return nil, false, nil
 }
 

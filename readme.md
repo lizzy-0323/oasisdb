@@ -14,7 +14,7 @@ I start this project for all the beginners to learn vector search very easily, a
 
 ## ✨ Features
 
-1. Multiple type of vector index: HNSW(hnswlib), IVF, Flat and so on.
+1. Multiple type of vector index: HNSW(hnswlib), IVFFLAT, Flat and so on.
 2. Lightweight: standalone deployment as one process, **do not have any internal network communication**.
 3. Embedding support: currently support aliyun embedding service, you can refer the embedding docs in [embedding](docs/embedding.md)
 4. Easy to use: RESTful API for HTTP and Client SDK for Python and Go in `client-sdk`.

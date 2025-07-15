@@ -1,16 +1,16 @@
 package index
 
 const (
-	L2Space  SpaceType = "l2"
-	IPSpace  SpaceType = "ip"
-	CosSpace SpaceType = "cos"
+	L2Space      SpaceType = "l2"
+	IPSpace      SpaceType = "ip"
+	CosSpace     SpaceType = "cos"
+	HammingSpace SpaceType = "hamming"
 )
 
 const (
-	HNSWIndex IndexType = "hnsw"
-	IVFIndex  IndexType = "ivf"
-	// add FLATIndex
-	FLATIndex IndexType = "flat"
+	HNSWIndex    IndexType = "hnsw"
+	IVFFLATIndex IndexType = "ivf_flat"
+	FLATIndex    IndexType = "flat"
 )
 
 // HNSW specific constants
