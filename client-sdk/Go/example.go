@@ -1,4 +1,5 @@
 package main
+
 /*
 Example script for OasisDB Go SDK.
 
@@ -17,6 +18,7 @@ $ go run example.go
 import (
 	"fmt"
 	"math/rand"
+	"oasisdb/client-sdk/Go/client"
 )
 
 func randomVector(dim int) []float32 {
@@ -28,7 +30,7 @@ func randomVector(dim int) []float32 {
 }
 
 func main() {
-	client := NewOasisDBClient("http://localhost:8080")
+	client := client.NewOasisDBClient("http://localhost:8080")
 
 	// 1. Health check
 	ok, err := client.HealthCheck()
@@ -46,7 +48,7 @@ func main() {
 
 	// 3. Upsert documents
 	docs := make([]map[string]any, 10)
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		docs[i] = map[string]any{
 			"id":     fmt.Sprintf("%d", i),
 			"vector": randomVector(128),
