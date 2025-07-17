@@ -106,54 +106,58 @@ func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int)
 	return searchResult.IDs, searchResult.Distances, nil
 }
 
-
 // SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, queryDoc *Document, k int, filter map[string]interface{}) ([]*Document, []float32, error) {
-    // Handle automatic embedding generation if requested
-    if queryDoc.Parameters != nil {
-        if flag, ok := queryDoc.Parameters["embedding"].(bool); ok && flag && len(queryDoc.Vector) == 0 {
-            text, okText := queryDoc.Parameters["text"].(string)
-            if !okText {
-                return nil, nil, fmt.Errorf("text parameter is required for embedding when vector is not provided")
-            }
-            vec64, err := db.conf.EmbeddingProvider.Embed(text)
-            if err != nil {
-                return nil, nil, fmt.Errorf("failed to generate embedding: %w", err)
-            }
-            queryDoc.Vector = float64SliceTo32(vec64)
-            queryDoc.Dimension = len(queryDoc.Vector)
-        }
-    }
+	// Handle automatic embedding generation if requested
+	if queryDoc.Parameters != nil {
+		if flag, ok := queryDoc.Parameters["embedding"].(bool); ok && flag && len(queryDoc.Vector) == 0 {
+			text, okText := queryDoc.Parameters["text"].(string)
+			if !okText {
+				return nil, nil, fmt.Errorf("text parameter is required for embedding when vector is not provided")
+			}
+			vec64, err := db.conf.EmbeddingProvider.Embed(text)
+			if err != nil {
+				return nil, nil, fmt.Errorf("failed to generate embedding: %w", err)
+			}
+			queryDoc.Vector = float64SliceTo32(vec64)
+			queryDoc.Dimension = len(queryDoc.Vector)
+		}
+	}
 
-    // Validate that query document has a vector
-    if len(queryDoc.Vector) == 0 {
-        return nil, nil, fmt.Errorf("query document must have a vector or embedding parameters")
-    }
+	// Validate that query document has a vector
+	if len(queryDoc.Vector) == 0 {
+		return nil, nil, fmt.Errorf("query document must have a vector or embedding parameters")
+	}
 
-    // 1. get index
-    index, err := db.IndexManager.GetIndex(collectionName)
-    if err != nil {
-        return nil, nil, err
-    }
+	// 1. get index
+	index, err := db.IndexManager.GetIndex(collectionName)
+	if err != nil {
+		return nil, nil, err
+	}
 
-    // 2. search using hnsw index
-    searchResult, err := index.Search(queryDoc.Vector, k)
-    if err != nil {
-        return nil, nil, err
-    }
+	// 2. search using hnsw index
+	searchResult, err := index.Search(queryDoc.Vector, k)
+	if err != nil {
+		return nil, nil, err
+	}
 
-    // 3. get documents by ids
-    docs := make([]*Document, len(searchResult.IDs))
-    for i, id := range searchResult.IDs {
-        doc, err := db.GetDocument(collectionName, id)
-        if err != nil {
-            return nil, nil, err
-        }
-        docs[i] = doc
-    }
+	// 3. check if any results found
+	if len(searchResult.IDs) == 0 {
+		return nil, nil, errors.ErrNoResultsFound
+	}
 
-    // 4. return documents
-    return docs, searchResult.Distances, nil
+	// 4. get documents by ids
+	docs := make([]*Document, len(searchResult.IDs))
+	for i, id := range searchResult.IDs {
+		doc, err := db.GetDocument(collectionName, id)
+		if err != nil {
+			return nil, nil, err
+		}
+		docs[i] = doc
+	}
+
+	// 5. return documents
+	return docs, searchResult.Distances, nil
 }
 
 func (db *DB) prepareBatchData(collectionName string, docs []*Document) (*batchData, error) {
