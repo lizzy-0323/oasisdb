@@ -54,7 +54,7 @@ you can also use [example.py](client-sdk/python/example.py) to see how to use it
 
 ## 🤝 Contribution
 
-I welcome any contributions to this project. before contributing, please open an issue to discuss the changes you want to make.
+I welcome any contributions to this project. Before contributing, please open an issue to discuss the changes you want to make.
 
 If you want to start a PR for code changes, please follow the steps below to ensure the code quality:
 
