@@ -29,8 +29,6 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	if v, ok := config.Parameters["efConstruction"]; ok {
 		if ef, ok := v.(float64); ok {
 			efConstruction = uint32(ef)
-		} else {
-			efConstruction = DEFAULT_EF_CONSTRUCTION
 		}
 	}
 	if v, ok := config.Parameters["maxElements"]; ok {
