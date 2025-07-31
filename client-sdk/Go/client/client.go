@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bytes"
@@ -136,19 +136,38 @@ func (c *OasisDBClient) DeleteCollection(name string) error {
 }
 
 // UpsertDocument inserts or updates a document.
-func (c *OasisDBClient) UpsertDocument(collection, docID string, vector []float32, parameters map[string]any) (map[string]any, error) {
+func (c *OasisDBClient) UpsertDocument(collection, docID string, vector []float32, parameters map[string]interface{}) (map[string]any, error) {
+	if collection == "" || docID == "" || len(vector) == 0 {
+		return nil, fmt.Errorf("collection, docID, and vector must not be empty")
+	}
 	payload := map[string]any{
-		"id":         docID,
-		"vector":     vector,
-		"parameters": parameters,
+		"id":     docID,
+		"vector": vector,
+	}
+	if parameters != nil {
+		payload["parameters"] = parameters
 	}
 	resp, err := c.request("POST", fmt.Sprintf("/v1/collections/%s/documents", collection), payload)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("upsert document failed: %w", err)
 	}
 	var result map[string]any
 	err = json.Unmarshal(resp, &result)
 	return result, err
+}
+
+// CountDocuments returns the number of documents in a collection.
+func (c *OasisDBClient) CountDocuments(collection string) (int, error) {
+	resp, err := c.request("GET", fmt.Sprintf("/v1/collections/%s/documents/count", collection), nil)
+	if err != nil {
+		return 0, err
+	}
+	var result map[string]int
+	err = json.Unmarshal(resp, &result)
+	if err != nil {
+		return 0, err
+	}
+	return result["count"], nil
 }
 
 // BatchUpsertDocuments inserts or updates multiple documents in batch.
