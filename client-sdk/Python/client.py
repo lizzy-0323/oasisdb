@@ -13,10 +13,20 @@ True
 All methods raise `OasisDBError` (a subclass of `RuntimeError`) when the server
 returns a non-successful status code.
 """
+
 from __future__ import annotations
 
 import logging
-from typing import Any, Mapping, MutableMapping, Optional, Sequence, Iterable, Dict, List
+from typing import (
+    Any,
+    Mapping,
+    MutableMapping,
+    Optional,
+    Sequence,
+    Iterable,
+    Dict,
+    List,
+)
 
 import requests
 
@@ -58,7 +68,7 @@ class OasisDBClient:
         base_url: str = "http://localhost:8080",
         *,
         session: Optional[requests.Session] = None,
-        timeout: Optional[float] | tuple[float, float] = 30,
+        timeout: Optional[float] | tuple[float, float] = 20000,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.session: requests.Session = session or requests.Session()
@@ -153,7 +163,9 @@ class OasisDBClient:
                 raise ValueError("Each document must contain 'id' and 'vector'.")
             docs.append(doc)
         self._request(
-            "POST", f"/v1/collections/{collection}/documents/batchupsert", json={"documents": docs}
+            "POST",
+            f"/v1/collections/{collection}/documents/batchupsert",
+            json={"documents": docs},
         )
 
     def get_document(self, collection: str, doc_id: str) -> Dict[str, Any]:
@@ -163,9 +175,13 @@ class OasisDBClient:
         self._request("DELETE", f"/v1/collections/{collection}/documents/{doc_id}")
 
     # Index building ----------------------------------------------------
-    def build_index(self, collection: str, documents: Iterable[Mapping[str, Any]]) -> None:
+    def build_index(
+        self, collection: str, documents: Iterable[Mapping[str, Any]]
+    ) -> None:
         self._request(
-            "POST", f"/v1/collections/{collection}/buildindex", json={"documents": list(documents)}
+            "POST",
+            f"/v1/collections/{collection}/buildindex",
+            json={"documents": list(documents)},
         )
 
     def set_params(
