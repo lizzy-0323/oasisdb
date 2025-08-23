@@ -155,10 +155,9 @@ func TestWithMethod(t *testing.T) {
 	}
 
 	// Check that the With fields are included
-	contextFields := make(map[string]interface{})
+	contextFields := make(map[string]any)
 	for _, field := range entry.Context {
-		switch field.Type {
-		case zapcore.StringType:
+		if field.Type == zapcore.StringType {
 			contextFields[field.Key] = field.String
 		}
 	}
