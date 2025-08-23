@@ -177,7 +177,7 @@ func TestWALReader_RestoreToMemtable_EmptyFile(t *testing.T) {
 
 	// Create mock memtable and restore data
 	memTable := NewMockMemTable()
-	err = reader.RestoreToMemtable(memTable)
+	_ = reader.RestoreToMemtable(memTable)
 
 	// Verify memtable is empty
 	if memTable.EntriesCnt() != 0 {
