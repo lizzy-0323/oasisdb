@@ -3,6 +3,7 @@ package wal
 import (
 	"encoding/binary"
 	"os"
+	"path/filepath"
 )
 
 type WALWriter struct {
@@ -12,6 +13,12 @@ type WALWriter struct {
 }
 
 func NewWALWriter(file string) (*WALWriter, error) {
+	// 确保目录存在
+	dir := filepath.Dir(file)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, err
+	}
+
 	dest, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		return nil, err

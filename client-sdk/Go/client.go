@@ -23,6 +23,8 @@ import (
 
 // OasisDBClient is a high-level HTTP client for OasisDB.
 // Provides health check, collection management, document management, vector search, etc.
+const TIMEOUT = 20000
+
 type OasisDBClient struct {
 	BaseURL string
 	Client  *http.Client
@@ -42,7 +44,7 @@ func (e *OasisDBError) Error() string {
 func NewOasisDBClient(baseURL string) *OasisDBClient {
 	return &OasisDBClient{
 		BaseURL: baseURL,
-		Client:  &http.Client{Timeout: 30 * time.Second},
+		Client:  &http.Client{Timeout: TIMEOUT * time.Second},
 	}
 }
 

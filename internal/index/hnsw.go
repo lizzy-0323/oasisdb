@@ -115,6 +115,20 @@ func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	}, nil
 }
 
+// GetVector 根据ID获取向量数据
+func (h *hnswIndex) GetVector(id string) ([]float32, error) {
+	if h.index == nil {
+		return nil, fmt.Errorf("index is not initialized")
+	}
+
+	vector := h.index.GetVectorByLabel(uint32(stringToID(id)), int(h.config.Dimension))
+	if vector == nil {
+		return nil, errors.ErrDocumentNotFound
+	}
+
+	return vector, nil
+}
+
 func (h *hnswIndex) Load(filePath string) error {
 	var spaceType string
 	if h.config.SpaceType == IPSpace {

@@ -35,6 +35,9 @@ type VectorIndex interface {
 	// Search performs a k-NN search
 	Search(vector []float32, k int) (*SearchResult, error)
 
+	// GetVector gets a vector by ID
+	GetVector(id string) ([]float32, error)
+
 	// SetParams sets index parameters
 	SetParams(params map[string]any) error
 
