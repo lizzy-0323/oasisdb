@@ -10,6 +10,7 @@ var (
 	// Document errors
 	ErrDocumentNotFound = errors.New("document not found")
 	ErrDocumentExists   = errors.New("document already exists")
+	ErrNoResultsFound   = errors.New("no satisfied results found")
 
 	// Index errors
 	ErrIndexNotFound        = errors.New("index not found")

@@ -184,7 +184,12 @@ func (db *DB) SearchDocuments(collectionName string, queryDoc *Document, k int, 
 		return nil, nil, err
 	}
 
-	// 3. get documents by ids
+	// 3. check if any results found
+	if len(searchResult.IDs) == 0 {
+		return nil, nil, errors.ErrNoResultsFound
+	}
+
+	// 4. get documents by ids
 	docs := make([]*Document, len(searchResult.IDs))
 	for i, id := range searchResult.IDs {
 		doc, err := db.GetDocument(collectionName, id)
@@ -194,7 +199,7 @@ func (db *DB) SearchDocuments(collectionName string, queryDoc *Document, k int, 
 		docs[i] = doc
 	}
 
-	// 4. return documents
+	// 5. return documents
 	return docs, searchResult.Distances, nil
 }
 
