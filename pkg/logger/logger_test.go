@@ -8,13 +8,6 @@ import (
 	"go.uber.org/zap/zaptest/observer"
 )
 
-// setupTestLogger creates a logger with observer for testing
-func setupTestLogger() (*zap.Logger, *observer.ObservedLogs) {
-	core, recorded := observer.New(zapcore.InfoLevel)
-	logger := zap.New(core)
-	return logger, recorded
-}
-
 // TestDebugLogging tests the Debug function
 func TestDebugLogging(t *testing.T) {
 	// Save original logger
