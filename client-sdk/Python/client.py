@@ -58,7 +58,7 @@ class OasisDBClient:
         base_url: str = "http://localhost:8080",
         *,
         session: Optional[requests.Session] = None,
-        timeout: Optional[float] | tuple[float, float] = 30,
+        timeout: Optional[float] | tuple[float, float] = 3000,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.session: requests.Session = session or requests.Session()
