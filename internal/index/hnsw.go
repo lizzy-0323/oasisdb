@@ -29,8 +29,6 @@ func newHNSWIndex(config *IndexConfig) (VectorIndex, error) {
 	if v, ok := config.Parameters["efConstruction"]; ok {
 		if ef, ok := v.(float64); ok {
 			efConstruction = uint32(ef)
-		} else {
-			efConstruction = DEFAULT_EF_CONSTRUCTION
 		}
 	}
 	if v, ok := config.Parameters["maxElements"]; ok {
@@ -115,6 +113,20 @@ func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 		IDs:       strIDs,
 		Distances: distances,
 	}, nil
+}
+
+// GetVector 根据ID获取向量数据
+func (h *hnswIndex) GetVector(id string) ([]float32, error) {
+	if h.index == nil {
+		return nil, fmt.Errorf("index is not initialized")
+	}
+
+	vector := h.index.GetVectorByLabel(uint32(stringToID(id)), int(h.config.Dimension))
+	if vector == nil {
+		return nil, errors.ErrDocumentNotFound
+	}
+
+	return vector, nil
 }
 
 func (h *hnswIndex) Load(filePath string) error {

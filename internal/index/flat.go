@@ -135,6 +135,24 @@ func (f *FlatIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	return &SearchResult{IDs: ids, Distances: dists}, nil
 }
 
+// GetVector 根据ID获取向量数据
+func (f *FlatIndex) GetVector(id string) ([]float32, error) {
+	idx, exists := f.IdToIdx[id]
+	if !exists {
+		return nil, pkgerrors.ErrDocumentNotFound
+	}
+
+	// 从连续内存中提取向量
+	start := idx * f.Dim
+	end := start + f.Dim
+
+	// 复制向量数据以避免返回内部切片
+	vector := make([]float32, f.Dim)
+	copy(vector, f.Data[start:end])
+
+	return vector, nil
+}
+
 // SetParams 设置参数（flat实现可忽略）
 func (f *FlatIndex) SetParams(params map[string]any) error {
 	return nil
@@ -164,7 +182,7 @@ func (f *FlatIndex) Save(filePath string) error {
 	return enc.Encode(f)
 }
 
-// Close release resource 
+// Close release resource
 func (f *FlatIndex) Close() error {
 	return nil
 }
