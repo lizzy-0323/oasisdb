@@ -124,8 +124,19 @@ func (s *Server) handleGetCollection() gin.HandlerFunc {
 func (s *Server) handleDeleteCollection() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		name := c.Param("name")
+
+		// Clear cache entries for this collection before deletion
+		if s.db.Cache != nil {
+			prefix := fmt.Sprintf("%s:", name)
+			s.db.Cache.DeleteWithPrefix(prefix)
+		}
+
 		if err := s.db.DeleteCollection(name); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			if err == pkgerrors.ErrCollectionNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
 			return
 		}
 
@@ -133,16 +144,19 @@ func (s *Server) handleDeleteCollection() gin.HandlerFunc {
 	}
 }
 
-// TODO: ListCollections
+// ListCollections returns all collection names
 func (s *Server) handleListCollections() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		collections, err := s.db.ListCollections()
+		collectionNames, err := s.db.ListCollections()
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		c.JSON(http.StatusOK, collections)
+		c.JSON(http.StatusOK, gin.H{
+			"collections": collectionNames,
+			"count":       len(collectionNames),
+		})
 	}
 }
 
@@ -241,47 +255,47 @@ func (s *Server) handleDeleteDocument() gin.HandlerFunc {
 }
 
 func (s *Server) handleSearchDocuments() gin.HandlerFunc {
-    return func(c *gin.Context) {
-        collectionName := c.Param("name")
-        var req SearchDocumentRequest
-        if err := c.ShouldBindJSON(&req); err != nil {
-            c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-            return
-        }
+	return func(c *gin.Context) {
+		collectionName := c.Param("name")
+		var req SearchDocumentRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 
-        // Create query document from request
-        queryDoc := &DB.Document{
-            Vector:    req.Vector,
-            Dimension: len(req.Vector),
-        }
+		// Create query document from request
+		queryDoc := &DB.Document{
+			Vector:    req.Vector,
+			Dimension: len(req.Vector),
+		}
 
-        // Call SearchDocuments with query document and correct field names
-        results, distances, err := s.db.SearchDocuments(collectionName, queryDoc, req.Limit, req.Filter)
-        if err != nil {
-            c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-            return
-        }
+		// Call SearchDocuments with query document and correct field names
+		results, distances, err := s.db.SearchDocuments(collectionName, queryDoc, req.Limit, req.Filter)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
 
-        // Convert results to response format
-        docs := make([]map[string]interface{}, len(results))
-        for i, doc := range results {
-            docs[i] = map[string]interface{}{
-                "id":         doc.ID,
-                "vector":     doc.Vector,
-                "parameters": doc.Parameters,
-                "dimension":  doc.Dimension,
-                "distance":   distances[i],
-            }
-        }
+		// Convert results to response format
+		docs := make([]map[string]interface{}, len(results))
+		for i, doc := range results {
+			docs[i] = map[string]interface{}{
+				"id":         doc.ID,
+				"vector":     doc.Vector,
+				"parameters": doc.Parameters,
+				"dimension":  doc.Dimension,
+				"distance":   distances[i],
+			}
+		}
 
-        // Prepare response
-        response := gin.H{
-            "documents": docs,
-            "distances": distances,
-        }
+		// Prepare response
+		response := gin.H{
+			"documents": docs,
+			"distances": distances,
+		}
 
-        c.JSON(http.StatusOK, response)
-    }
+		c.JSON(http.StatusOK, response)
+	}
 }
 
 func (s *Server) handleBatchUpsertDocuments() gin.HandlerFunc {
