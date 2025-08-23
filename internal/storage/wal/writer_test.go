@@ -186,8 +186,6 @@ func TestWALWriter_Close(t *testing.T) {
 	// Close the writer
 	writer.Close()
 
-	// Try to write after close (this might succeed depending on OS, but file should be closed)
-	err = writer.Write([]byte("after"), []byte("close"))
-	// Note: We don't check for error here as behavior after close is not guaranteed
-	// but the Close() function should have been called without panic
+	_ = writer.Write([]byte("after"), []byte("close"))
+
 }

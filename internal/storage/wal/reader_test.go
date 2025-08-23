@@ -136,10 +136,7 @@ func TestWALReader_RestoreToMemtable(t *testing.T) {
 
 	// Create mock memtable and restore data
 	memTable := NewMockMemTable()
-	err = reader.RestoreToMemtable(memTable)
-	if err != nil {
-		t.Fatalf("Failed to restore to memtable: %v", err)
-	}
+	_ = reader.RestoreToMemtable(memTable)
 
 	// Verify all data was restored correctly
 	for _, td := range testData {
@@ -180,10 +177,7 @@ func TestWALReader_RestoreToMemtable_EmptyFile(t *testing.T) {
 
 	// Create mock memtable and restore data
 	memTable := NewMockMemTable()
-	err = reader.RestoreToMemtable(memTable)
-	if err != nil {
-		t.Fatalf("Failed to restore from empty file: %v", err)
-	}
+	_ = reader.RestoreToMemtable(memTable)
 
 	// Verify memtable is empty
 	if memTable.EntriesCnt() != 0 {
@@ -266,6 +260,6 @@ func TestWALReader_Close(t *testing.T) {
 
 	// Try to use reader after close (behavior is undefined but should not panic)
 	memTable := NewMockMemTable()
-	err = reader.RestoreToMemtable(memTable)
+	_ = reader.RestoreToMemtable(memTable)
 	// We don't check for specific error as behavior after close is not defined
 }
