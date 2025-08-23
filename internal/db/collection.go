@@ -135,7 +135,9 @@ func (db *DB) DeleteCollection(name string) error {
 	return nil
 }
 
-// TODO: ListCollections lists all collections
-func (db *DB) ListCollections() ([]*Collection, error) {
-	return nil, nil
+// ListCollections lists all collection names
+func (db *DB) ListCollections() ([]string, error) {
+	// Get all collection names from index manager
+	collectionNames := db.IndexManager.GetAllIndexNames()
+	return collectionNames, nil
 }

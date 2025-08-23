@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/wal"
@@ -293,6 +294,18 @@ func (m *Manager) GetIndex(collectionName string) (VectorIndex, error) {
 	return index, nil
 }
 
+// GetAllIndexNames returns all collection names that have indices
+func (m *Manager) GetAllIndexNames() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	names := make([]string, 0, len(m.indices))
+	for name := range m.indices {
+		names = append(names, name)
+	}
+	return names
+}
+
 // DeleteIndex removes a vector index
 func (m *Manager) DeleteIndex(collectionName string) error {
 	m.mu.Lock()
@@ -312,6 +325,17 @@ func (m *Manager) DeleteIndex(collectionName string) error {
 
 	// Remove from map to prevent new operations
 	delete(m.indices, collectionName)
+
+	// Release lock temporarily to allow any ongoing save operations to complete
+	// This prevents deadlock while ensuring safety
+	m.mu.Unlock()
+
+	// Give ongoing save operations a brief moment to detect the deletion and abort
+	// This is a small optimization to reduce the chance of race conditions
+	time.Sleep(10 * time.Millisecond)
+
+	// Reacquire lock for cleanup
+	m.mu.Lock()
 
 	// Close index
 	if err := index.Close(); err != nil {
@@ -359,13 +383,14 @@ func (m *Manager) monitorIndexSave() error {
 	for {
 		select {
 		case indexItem := <-m.indexCh:
+			// Hold read lock during the entire save operation to prevent index deletion
 			m.mu.RLock()
 			stopCh, hasStopCh := m.stopSaveCh[indexItem.collectionName]
 			_, exists := m.indices[indexItem.collectionName]
-			m.mu.RUnlock()
 
 			// Skip if index is being deleted or doesn't exist
 			if !exists {
+				m.mu.RUnlock()
 				logger.Info("Skip saving deleted index", "collection", indexItem.collectionName)
 				continue
 			}
@@ -374,17 +399,23 @@ func (m *Manager) monitorIndexSave() error {
 			if hasStopCh {
 				select {
 				case <-stopCh:
+					m.mu.RUnlock()
 					logger.Info("Skip saving index due to deletion", "collection", indexItem.collectionName)
 					continue
 				default:
 				}
 			}
 
-			// Save index to disk
+			// Save index to disk while holding the read lock
 			if err := indexItem.index.Save(m.newIndexFile(stringToInt32(indexItem.collectionName))); err != nil {
+				m.mu.RUnlock()
 				logger.Error("Failed to save index", "error", err)
 				continue
 			}
+
+			// Release the lock after save is complete
+			m.mu.RUnlock()
+
 			logger.Info("Saved index to disk", "collection", indexItem.collectionName)
 
 			// Delete WAL file
