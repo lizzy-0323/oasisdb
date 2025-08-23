@@ -293,6 +293,18 @@ func (m *Manager) GetIndex(collectionName string) (VectorIndex, error) {
 	return index, nil
 }
 
+// GetAllIndexNames returns all collection names that have indices
+func (m *Manager) GetAllIndexNames() []string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	names := make([]string, 0, len(m.indices))
+	for name := range m.indices {
+		names = append(names, name)
+	}
+	return names
+}
+
 // DeleteIndex removes a vector index
 func (m *Manager) DeleteIndex(collectionName string) error {
 	m.mu.Lock()
