@@ -27,6 +27,10 @@ type Config struct {
 	// Cache Config
 	CacheSize int `yaml:"cache_size"`
 
+	// Logging Config
+	LogLevel string `yaml:"log_level"` // debug, info, warn, error
+	LogFile  string `yaml:"log_file"`  // path to log file, empty means stdout
+
 	Filter              filter.Filter
 	MemTableConstructor memtable.MemTableConstructor
 	EmbeddingProvider   embedding.EmbeddingProvider
@@ -40,6 +44,8 @@ const (
 	DefaultSSTDataBlockSize = 16 * 1024 // 16KB
 	DefaultSSTFooterSize    = 32        // 32B
 	DefaultCacheSize        = 10
+	DefaultLogLevel         = "info"
+	DefaultLogFile          = ""
 )
 
 func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
@@ -47,6 +53,8 @@ func NewConfig(dir string, opts ...ConfigOption) (*Config, error) {
 		Dir:           dir,
 		SSTFooterSize: DefaultSSTFooterSize,
 		CacheSize:     DefaultCacheSize,
+		LogLevel:      DefaultLogLevel,
+		LogFile:       DefaultLogFile,
 	}
 	for _, opt := range opts {
 		opt(&c)
@@ -131,6 +139,8 @@ func FromFile(filename string) (*Config, error) {
 		WithSSTDataBlockSize(config.SSTDataBlockSize),
 		WithSSTFooterSize(config.SSTFooterSize),
 		WithCacheSize(config.CacheSize),
+		WithLogLevel(config.LogLevel),
+		WithLogFile(config.LogFile),
 	}
 
 	return NewConfig(config.Dir, opts...)
@@ -189,5 +199,19 @@ func WithMemTableConstructor(constructor memtable.MemTableConstructor) ConfigOpt
 func WithCacheSize(cacheSize int) ConfigOption {
 	return func(c *Config) {
 		c.CacheSize = cacheSize
+	}
+}
+
+// WithLogLevel set log level
+func WithLogLevel(logLevel string) ConfigOption {
+	return func(c *Config) {
+		c.LogLevel = logLevel
+	}
+}
+
+// WithLogFile set log file path
+func WithLogFile(logFile string) ConfigOption {
+	return func(c *Config) {
+		c.LogFile = logFile
 	}
 }

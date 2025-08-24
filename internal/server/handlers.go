@@ -109,7 +109,11 @@ func (s *Server) handleGetCollection() gin.HandlerFunc {
 		name := c.Param("name")
 		collection, err := s.db.GetCollection(name)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			if err == pkgerrors.ErrCollectionNotFound {
+				c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			} else {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			}
 			return
 		}
 

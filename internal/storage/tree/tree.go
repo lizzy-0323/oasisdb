@@ -6,6 +6,7 @@ import (
 	"oasisdb/internal/config"
 	"oasisdb/internal/storage/memtable"
 	"oasisdb/internal/storage/wal"
+	"oasisdb/pkg/logger"
 	"path"
 	"strconv"
 	"strings"
@@ -69,13 +70,11 @@ func (t *LSMTree) Put(key, value []byte) error {
 	// 3. write into memtable(skiplist)
 	t.memTable.Put(key, value)
 
-	// 4. refresh memtable if size reach the limit
-	if uint64(t.memTable.Size()*5/4) <= t.conf.SSTSize {
-		return nil
+	// 4. refresh memtable if size reach the limit, here we use 5/4 to avoid too many refresh
+	if uint64(t.memTable.Size()*5/4) >= t.conf.SSTSize {
+		t.refreshMemTableLocked()
 	}
 
-	// 5. refresh memtable
-	t.refreshMemTableLocked()
 	return nil
 }
 
@@ -94,6 +93,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 	value, ok := t.memTable.Get(key)
 	if ok {
 		t.dataLock.RUnlock()
+		logger.Debug("Found in active memtable", "key", string(key), "value", string(value))
 		return value, true, nil
 	}
 
@@ -102,6 +102,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		value, ok = t.rOnlyMemTables[i].memTable.Get(key)
 		if ok {
 			t.dataLock.RUnlock()
+			logger.Debug("Found in read only memtable", "key", string(key), "value", string(value))
 			return value, true, nil
 		}
 	}
@@ -117,6 +118,7 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		}
 		if ok {
 			t.levelLocks[0].RUnlock()
+			logger.Debug("Found in level 0", "key", string(key), "value", string(value))
 			return value, true, nil
 		}
 	}
@@ -136,11 +138,13 @@ func (t *LSMTree) Get(key []byte) ([]byte, bool, error) {
 		}
 		if ok {
 			t.levelLocks[level].RUnlock()
+			logger.Debug("Found in level", level, "key", string(key), "value", string(value))
 			return value, true, nil
 		}
 		t.levelLocks[level].RUnlock()
 	}
 	// 4. return if not found
+	logger.Debug("Not found", "key", string(key))
 	return nil, false, nil
 }
 
@@ -163,6 +167,7 @@ func (t *LSMTree) refreshMemTableLocked() {
 	// 1. change to readOnly skiplist and add to slices
 	// 2. send to compact go routine
 	// 3. compact write to level 0 sstable
+	logger.Debug("Refreshing memtable", "memtable_size", t.memTable.Size())
 	oldItem := &memTableCompactItem{
 		memTable: t.memTable,
 		walFile:  t.newWalFile(),

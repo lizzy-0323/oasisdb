@@ -9,7 +9,8 @@ walfile
 indexfile
 sstfile
 coverage.out
-.history
-client-sdk/Python/data
+*.log
+
+
 
 

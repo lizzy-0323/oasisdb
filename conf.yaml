@@ -1,7 +1,9 @@
-dir: ./data
+dir: .
 max_level: 7
-sst_size: 1048576 
+sst_size: 1048576
 sst_num_per_level: 4
 sst_data_block_size: 16384
 sst_footer_size: 32
 cache_size: 10
+log_level: info # debug, info, warn, error
+log_file: ./oasisdb.log # empty for stdout

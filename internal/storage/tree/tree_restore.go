@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"oasisdb/internal/storage/sstable"
 	"oasisdb/internal/storage/wal"
+	"oasisdb/pkg/logger"
 	"os"
 	"path"
 	"sort"
@@ -17,6 +18,7 @@ func (t *LSMTree) restoreMemTables(wals []fs.DirEntry) error {
 	for i := 0; i < len(wals); i++ {
 		name := wals[i].Name()
 		file := path.Join(t.conf.Dir, "walfile", name)
+		logger.Debug("Restoring wal file", "wal_file", file)
 		walReader, err := wal.NewWALReader(file)
 		if err != nil {
 			return err
@@ -87,6 +89,7 @@ func (t *LSMTree) constructTree() error {
 
 	// read sst files
 	for _, sstEntry := range sstEntries {
+		logger.Debug("Loading sst file", "sst_file", sstEntry.Name())
 		if err = t.loadNode(sstEntry); err != nil {
 			return err
 		}
@@ -117,7 +120,7 @@ func (t *LSMTree) loadNode(sstEntry fs.DirEntry) error {
 	}
 
 	level, seq := getLevelSeqFromSSTFile(sstEntry.Name())
-	// 将 sst 文件作为一个 node 插入到 lsm tree 中
+	// insert sst file as a node to lsm tree
 	t.insertNodeWithReader(sstReader, level, seq, size, blockToFilter, index)
 	return nil
 }

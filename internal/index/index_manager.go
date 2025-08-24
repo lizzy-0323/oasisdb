@@ -557,6 +557,19 @@ func (m *Manager) DeleteVector(collectionName string, id string) error {
 	return nil
 }
 
+// GetVector gets a vector by ID from the specified index
+func (m *Manager) GetVector(collectionName string, id string) ([]float32, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	index, exists := m.indices[collectionName]
+	if !exists {
+		return nil, errors.ErrIndexNotFound
+	}
+
+	return index.GetVector(id)
+}
+
 func (m *Manager) ApplyOpWithWal(entry *WALEntry) error {
 	entryBytes, err := encodeWALEntry(entry)
 	if err != nil {
