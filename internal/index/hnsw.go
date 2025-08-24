@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"oasisdb/internal/engine/go_api/hnsw"
 	"oasisdb/pkg/errors"
+	"oasisdb/pkg/logger"
 )
 
 type hnswIndex struct {
@@ -108,14 +109,14 @@ func (h *hnswIndex) Search(vector []float32, k int) (*SearchResult, error) {
 	for i, id := range ids {
 		strIDs[i] = idToString(int64(id))
 	}
-
+	logger.Debug("Search result", "ids", strIDs, "dists", distances)
 	return &SearchResult{
 		IDs:       strIDs,
 		Distances: distances,
 	}, nil
 }
 
-// GetVector 根据ID获取向量数据
+// GetVector get vector by id
 func (h *hnswIndex) GetVector(id string) ([]float32, error) {
 	if h.index == nil {
 		return nil, fmt.Errorf("index is not initialized")
@@ -155,6 +156,7 @@ func (h *hnswIndex) Save(filePath string) error {
 	if h.index == nil {
 		return fmt.Errorf("index is not initialized")
 	}
+	logger.Debug("Saving index to file", "file", filePath)
 	return h.index.SaveIndex(filePath)
 }
 

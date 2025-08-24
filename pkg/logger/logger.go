@@ -1,22 +1,79 @@
 package logger
 
 import (
+	"os"
+	"strings"
+
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+)
+
+const (
+	DebugLevel = "debug"
+	InfoLevel  = "info"
+	WarnLevel  = "warn"
+	ErrorLevel = "error"
+	FatalLevel = "fatal"
 )
 
 var defaultLogger *zap.Logger
 
 func init() {
-	config := zap.NewProductionConfig()
-	config.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-	config.EncoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	// Initialize with default production config
+	// In main function, we will override the logger with the config file
+	InitLogger(InfoLevel, "")
+}
 
-	logger, err := config.Build()
-	if err != nil {
-		panic(err)
+// InitLogger initializes the logger with specified level and file path
+func InitLogger(level, filePath string) {
+	// Parse log level
+	var zapLevel zapcore.Level
+	switch strings.ToLower(level) {
+	case DebugLevel:
+		zapLevel = zapcore.DebugLevel
+	case InfoLevel:
+		zapLevel = zapcore.InfoLevel
+	case WarnLevel:
+		zapLevel = zapcore.WarnLevel
+	case ErrorLevel:
+		zapLevel = zapcore.ErrorLevel
+	case FatalLevel:
+		zapLevel = zapcore.FatalLevel
+	default:
+		zapLevel = zapcore.InfoLevel
 	}
-	defaultLogger = logger
+
+	// Configure encoder
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	encoderConfig.EncodeCaller = zapcore.ShortCallerEncoder
+
+	// Configure output
+	var core zapcore.Core
+	if filePath != "" {
+		// Write to file
+		file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			panic(err)
+		}
+		fileWriter := zapcore.AddSync(file)
+		core = zapcore.NewCore(
+			zapcore.NewJSONEncoder(encoderConfig),
+			fileWriter,
+			zapLevel,
+		)
+	} else {
+		// Write to stdout
+		core = zapcore.NewCore(
+			zapcore.NewConsoleEncoder(encoderConfig),
+			zapcore.AddSync(os.Stdout),
+			zapLevel,
+		)
+	}
+
+	// Build logger
+	defaultLogger = zap.New(core, zap.AddCaller())
 }
 
 // Debug logs a debug message with fields

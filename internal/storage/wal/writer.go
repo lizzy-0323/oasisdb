@@ -13,7 +13,7 @@ type WALWriter struct {
 }
 
 func NewWALWriter(file string) (*WALWriter, error) {
-	// 确保目录存在
+	// ensure directory exists
 	dir := filepath.Dir(file)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return nil, err
