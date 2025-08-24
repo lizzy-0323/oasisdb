@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"oasisdb/pkg/errors"
+	"oasisdb/pkg/logger"
+	"time"
 )
 
 // Document represents a document (used for client API)
@@ -131,73 +133,114 @@ func (db *DB) DeleteDocument(collectionName string, id string) error {
 }
 
 // SearchVectors returns top-k vector ids and distances
-func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) { // 检查collection是否存在
+func (db *DB) SearchVectors(collectionName string, queryVector []float32, k int) ([]string, []float32, error) {
+	startTime := time.Now()
+	logger.Info("Starting vector search", "collection", collectionName, "k", k, "vector_dim", len(queryVector))
+
 	// check if collection exists
 	_, err := db.GetCollection(collectionName)
 	if err != nil {
+		logger.Error("Collection not found", "collection", collectionName, "error", err)
 		return nil, nil, err
 	}
+	logger.Debug("Collection validated", "collection", collectionName)
 
 	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
+		logger.Error("Failed to get index", "collection", collectionName, "error", err)
 		return nil, nil, err
 	}
+	logger.Debug("Retrieved index for collection", "collection", collectionName)
+
+	searchStart := time.Now()
 	searchResult, err := index.Search(queryVector, k)
+	searchDuration := time.Since(searchStart)
 	if err != nil {
+		logger.Error("Vector search failed", "collection", collectionName, "error", err)
 		return nil, nil, err
 	}
+
+	totalDuration := time.Since(startTime)
+	logger.Info("Vector search completed", "collection", collectionName, "k", k,
+		"results", len(searchResult.IDs), "search_duration", searchDuration, "total_duration", totalDuration)
+
 	return searchResult.IDs, searchResult.Distances, nil
 }
 
 // SearchDocuments returns top-k documents and distances
 func (db *DB) SearchDocuments(collectionName string, queryDoc *Document, k int, filter map[string]any) ([]*Document, []float32, error) {
+	startTime := time.Now()
+	logger.Info("Starting document search", "collection", collectionName, "k", k, "has_filter", filter != nil)
+
 	// Handle automatic embedding generation if requested
 	if queryDoc.Parameters != nil {
 		if flag, ok := queryDoc.Parameters["embedding"].(bool); ok && flag && len(queryDoc.Vector) == 0 {
 			text, okText := queryDoc.Parameters["text"].(string)
 			if !okText {
+				logger.Error("Text parameter missing for embedding generation")
 				return nil, nil, fmt.Errorf("text parameter is required for embedding when vector is not provided")
 			}
+			logger.Debug("Generating embedding for text", "text_length", len(text))
 			vec64, err := db.conf.EmbeddingProvider.Embed(text)
 			if err != nil {
+				logger.Error("Failed to generate embedding", "error", err)
 				return nil, nil, fmt.Errorf("failed to generate embedding: %w", err)
 			}
 			queryDoc.Vector = float64SliceTo32(vec64)
 			queryDoc.Dimension = len(queryDoc.Vector)
+			logger.Debug("Generated embedding", "dimension", queryDoc.Dimension)
 		}
 	}
 
 	// Validate that query document has a vector
 	if len(queryDoc.Vector) == 0 {
+		logger.Error("Query document missing vector")
 		return nil, nil, fmt.Errorf("query document must have a vector or embedding parameters")
 	}
+	logger.Debug("Query vector validated", "dimension", len(queryDoc.Vector))
 
 	// 1. get index
 	index, err := db.IndexManager.GetIndex(collectionName)
 	if err != nil {
+		logger.Error("Failed to get index", "collection", collectionName, "error", err)
 		return nil, nil, err
 	}
+	logger.Debug("Retrieved index for collection", "collection", collectionName)
 
 	// 2. search using hnsw index
+	searchStart := time.Now()
 	searchResult, err := index.Search(queryDoc.Vector, k)
+	searchDuration := time.Since(searchStart)
 	if err != nil {
+		logger.Error("Index search failed", "collection", collectionName, "error", err)
 		return nil, nil, err
 	}
+	logger.Debug("Index search completed", "collection", collectionName, "k", k,
+		"found_results", len(searchResult.IDs), "search_duration", searchDuration)
 
 	// 3. check if any results found
 	if len(searchResult.IDs) == 0 {
+		logger.Info("No search results found", "collection", collectionName, "k", k)
 		return nil, nil, errors.ErrNoResultsFound
 	}
 
 	// 4. get documents by ids
 	docs := make([]*Document, len(searchResult.IDs))
+	fetchStart := time.Now()
 	for i, id := range searchResult.IDs {
 		doc, err := db.GetDocument(collectionName, id)
 		if err != nil {
+			logger.Error("Failed to get document", "collection", collectionName, "id", id, "error", err)
 			return nil, nil, err
 		}
 		docs[i] = doc
 	}
+	fetchDuration := time.Since(fetchStart)
+	logger.Debug("Document fetch completed", "collection", collectionName, "count", len(docs), "fetch_duration", fetchDuration)
+
+	totalDuration := time.Since(startTime)
+	logger.Info("Document search completed", "collection", collectionName, "k", k,
+		"results", len(docs), "total_duration", totalDuration)
 
 	// 5. return documents
 	return docs, searchResult.Distances, nil

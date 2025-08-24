@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"oasisdb/internal/config"
+	"oasisdb/pkg/logger"
 	"oasisdb/pkg/utils"
 	"os"
 	"path"
@@ -89,6 +90,7 @@ func (s *SSTableWriter) Append(key, value []byte) error {
 }
 
 func (s *SSTableWriter) writeIndex(key []byte) error {
+	logger.Debug("Writing index", "prev_key", string(s.prevKey), "key", string(key))
 	indexKey := utils.GetSeparatorBetween(s.prevKey, key)
 	// Using assistBuf to store offset and size
 	n := binary.PutUvarint(s.assistBuf[0:], s.prevBlockOffset)
@@ -175,6 +177,7 @@ func (s *SSTableWriter) refreshBlock() error {
 	// get bitmap for bloom filter
 	filterBitmap := s.conf.Filter.Hash()
 	s.blockToFilter[s.prevBlockOffset] = filterBitmap
+	logger.Debug("Created Bloom Filter for block", "offset", s.prevBlockOffset, "keys_count", s.conf.Filter.KeyLen(), "bitmap_size", len(filterBitmap))
 	n := binary.PutUvarint(s.assistBuf[0:], s.prevBlockOffset)
 	if err := s.filterBlock.Append(s.assistBuf[:n], filterBitmap); err != nil {
 		return err

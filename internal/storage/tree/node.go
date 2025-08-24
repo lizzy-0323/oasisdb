@@ -197,32 +197,35 @@ func (n *Node) Close() {
 }
 
 // mayContain using bloom filter to judge whether the key exists
-func (n *Node) mayContain(key []byte) bool {
-	bitmap := n.blockToFilter[n.indexEntries[0].PrevOffset]
-	// fmt.Println("bitmap: ", bitmap)
+func (n *Node) mayContain(indexEntry *sstable.IndexEntry, key []byte) bool {
+	bitmap := n.blockToFilter[indexEntry.PrevOffset]
 	return n.conf.Filter.MayContain(bitmap, key)
 }
 
 func (n *Node) Get(key []byte) ([]byte, bool, error) {
 	// 1. search index block by binary search
-	indexEntry, ok := n.searchIndex(key, 0, len(n.indexEntries)-1)
+	indexEntry, ok := n.binarySearchIndex(key, 0, len(n.indexEntries)-1)
 	if !ok {
 		return nil, false, nil
 	}
+
 	// 2. using bloom filter to judge whether the key exists
-	if !n.mayContain(key) {
+	if !n.mayContain(indexEntry, key) {
 		return nil, false, nil
 	}
+
 	// 3. fetch data block from disk
 	dataBlock, err := n.sstReader.ReadBlock(indexEntry.PrevOffset, indexEntry.PrevSize)
 	if err != nil {
 		return nil, false, err
 	}
+
 	// 4. parse data block
 	data, err := n.sstReader.ParseDataBlock(dataBlock)
 	if err != nil {
 		return nil, false, err
 	}
+
 	// 5. find the key
 	for _, kv := range data {
 		if bytes.Equal(kv.Key, key) {
@@ -236,13 +239,13 @@ func (n *Node) GetAll() ([]*sstable.KV, error) {
 	return n.sstReader.ReadData()
 }
 
-func (n *Node) searchIndex(key []byte, start, end int) (*sstable.IndexEntry, bool) {
+func (n *Node) binarySearchIndex(key []byte, start, end int) (*sstable.IndexEntry, bool) {
 	if start == end {
 		return n.indexEntries[start], bytes.Compare(n.indexEntries[start].Key, key) >= 0
 	}
 	mid := start + (end-start)>>1
 	if bytes.Compare(n.indexEntries[mid].Key, key) < 0 {
-		return n.searchIndex(key, mid+1, end)
+		return n.binarySearchIndex(key, mid+1, end)
 	}
-	return n.searchIndex(key, start, mid)
+	return n.binarySearchIndex(key, start, mid)
 }

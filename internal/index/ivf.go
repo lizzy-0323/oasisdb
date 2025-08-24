@@ -4,6 +4,7 @@ import (
 	"encoding/gob"
 	"errors"
 	pkgerrors "oasisdb/pkg/errors"
+	"oasisdb/pkg/logger"
 	"os"
 	"sort"
 )
@@ -167,8 +168,7 @@ func (ivf *ivfIndex) AddBatch(ids []string, vectors [][]float32) error {
 }
 
 func (ivf *ivfIndex) Delete(id string) error {
-	// Deletion is optional for now. We simply return nil as requested by the
-	// user (delete can be implemented later).
+	// TODO: implement delete
 	return nil
 }
 
@@ -223,26 +223,25 @@ func (ivf *ivfIndex) Search(vector []float32, k int) (*SearchResult, error) {
 		ids[i] = c.id
 		dists[i] = c.d
 	}
+	logger.Debug("Search result", "ids", ids, "dists", dists)
 	return &SearchResult{IDs: ids, Distances: dists}, nil
 }
 
-// GetVector 根据ID获取向量数据
+// GetVector get vector by id
 func (ivf *ivfIndex) GetVector(id string) ([]float32, error) {
 	if !ivf.trained {
-		// 检查pending vectors
 		for i, pendingID := range ivf.pendingIDs {
 			if pendingID == id {
-				return append([]float32(nil), ivf.pendingVectors[i]...), nil // 复制向量避免返回内部切片
+				return append([]float32(nil), ivf.pendingVectors[i]...), nil
 			}
 		}
 		return nil, pkgerrors.ErrDocumentNotFound
 	}
 
-	// 搜索所有倒排列表
 	for _, list := range ivf.lists {
 		for _, item := range list {
 			if item.ID == id {
-				return append([]float32(nil), item.Vector...), nil // 复制向量避免返回内部切片
+				return append([]float32(nil), item.Vector...), nil
 			}
 		}
 	}
@@ -289,6 +288,7 @@ func (ivf *ivfIndex) Save(filePath string) error {
 		Lists:     ivf.lists,
 		Trained:   ivf.trained,
 	}
+	logger.Debug("Saving index to file", "file", filePath)
 	return enc.Encode(&snap)
 }
 

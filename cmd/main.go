@@ -8,12 +8,16 @@ import (
 )
 
 func main() {
-	// Init Config
-	conf, err := config.NewConfig(".")
+	// Init Config from file
+	conf, err := config.FromFile("conf.yaml")
 	if err != nil {
-		logger.Error("Failed to load config", "error", err)
+		logger.Error("Failed to load config from file", "error", err)
 		return
 	}
+
+	// Initialize logger with config settings
+	logger.InitLogger(conf.LogLevel, conf.LogFile)
+	logger.Info("OasisDB starting", "log_level", conf.LogLevel, "log_file", conf.LogFile)
 
 	// Init DB
 	db, err := dblib.New(conf)
