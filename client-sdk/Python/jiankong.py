@@ -41,6 +41,9 @@ def run_monitor():
                     print(f"\n[{timestamp}] 收到异常状态码: {response.status_code}")
 
             except requests.exceptions.RequestException:
+                # 打印错误码
+                print(f"\n请求异常: {sys.exc_info()[1]}")
+                
                 # 连接不上服务器
                 sys.stdout.write(f"\r无法连接到 OasisDB 服务器...")
                 sys.stdout.flush()
