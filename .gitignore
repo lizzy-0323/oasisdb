@@ -10,7 +10,7 @@ indexfile
 sstfile
 coverage.out
 *.log
-
-
+.history
+client-sdk/Python/data
 
 
