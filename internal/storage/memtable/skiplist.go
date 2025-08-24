@@ -133,15 +133,12 @@ func (s *SkipList) All() []*KVPair {
 		return nil
 	}
 	nodes := make([]*KVPair, 0, s.entriesCnt)
-	cur := s.head
-	for i := s.level - 1; i >= 0; i-- {
-		for cur.next[i] != nil {
-			cur = cur.next[i]
-			nodes = append(nodes, &KVPair{
-				Key:   cur.key,
-				Value: cur.value,
-			})
-		}
+
+	for cur := s.head.next[0]; cur.next[0] != nil; cur = cur.next[0] {
+		nodes = append(nodes, &KVPair{
+			Key:   cur.key,
+			Value: cur.value,
+		})
 	}
 	return nodes
 }
