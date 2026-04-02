@@ -182,6 +182,38 @@ func TestManagerBuildIndexIVF(t *testing.T) {
 	assert.Equal(t, ids[10], res.IDs[0])
 }
 
+func TestManagerBuildIndexIVFPQ(t *testing.T) {
+	manager, cleanup := setupTestManager(t)
+	defer cleanup()
+
+	dim := 8
+	cfg := &IndexConfig{
+		IndexType: IVFPQIndex,
+		Dimension: dim,
+		SpaceType: L2Space,
+		Parameters: map[string]interface{}{
+			"nlist":  float64(4),
+			"nprobe": float64(2),
+			"m":      float64(4),
+			"nbits":  float64(8),
+		},
+	}
+	_, err := manager.CreateIndex("ivfpq_collection", cfg)
+	assert.NoError(t, err)
+
+	ids, vectors := generateVectors(20, dim)
+	err = manager.BuildIndex("ivfpq_collection", ids, vectors)
+	assert.NoError(t, err)
+
+	idx, err := manager.GetIndex("ivfpq_collection")
+	assert.NoError(t, err)
+
+	res, err := idx.Search(vectors[10], 3)
+	assert.NoError(t, err)
+	assert.Len(t, res.IDs, 3)
+	assert.Equal(t, ids[10], res.IDs[0])
+}
+
 func TestManagerVectorOperations(t *testing.T) {
 	manager, cleanup := setupTestManager(t)
 	defer cleanup()

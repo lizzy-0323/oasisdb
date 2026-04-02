@@ -38,7 +38,7 @@ The Gateway component is straightforward, primarily providing RESTful APIs for u
 
 The LRU Cache is mainly for caching popular vector searches. This cache should not be set too large, or it will consume a lot of memory. Additionally, we need to identify cached results by the (vector, topk) combination. If a query requests a larger topk than what was previously cached, the cached results cannot be used as a substitute. The code for this is in the `internal/cache` directory.
 
-Vector Storage is primarily for storing vector indexes and saving them. I've implemented both HNSW index based on hnswlib and IVF index for different scenarios. The IVF index has lower accuracy but works well for small-scale, high-dimensional data, while HNSW is the opposite. The HNSW index code is in the `internal/engine` directory, and the IVF index code is in the `internal/ivf` directory.
+Vector Storage is primarily for storing vector indexes and saving them. I've implemented HNSW index based on hnswlib, IVF Flat index, and IVF with Product Quantization (IVFPQ) index for different scenarios. The IVF index has lower accuracy but works well for small-scale, high-dimensional data, while HNSW is the opposite. IVFPQ adds Product Quantization on top of IVF to significantly reduce memory usage and speed up distance computation at the cost of slightly lower recall. The HNSW index code is in the `internal/engine` directory, the IVF index code is in the `internal/index/ivf.go` file, and the IVFPQ index code is in the `internal/index/ivfpq.go` file.
 
 Scalar Storage is mainly for storing vector metadata, which can be implemented with a KV store. I've implemented a KV storage based on the LSM tree, with code in the `internal/storage` directory.
 

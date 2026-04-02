@@ -10,6 +10,7 @@ const (
 const (
 	HNSWIndex    IndexType = "hnsw"
 	IVFFLATIndex IndexType = "ivf_flat"
+	IVFPQIndex   IndexType = "ivfpq"
 	FLATIndex    IndexType = "flat"
 )
 
@@ -26,4 +27,10 @@ const (
 	DEFAULT_MAX_KMEANS_ITER = 40
 	DEFAULT_NLIST           = 100
 	DEFAULT_NPROBE          = 10
+)
+
+// IVFPQ specific constants
+const (
+	DEFAULT_IVFPQ_M     = 8
+	DEFAULT_IVFPQ_NBITS = 8
 )

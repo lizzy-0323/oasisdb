@@ -22,6 +22,7 @@ This project was created to help developers learn vector search easily and effec
 
 - **HNSW** (Hierarchical Navigable Small World) - Fast approximate search
 - **IVFFLAT** (Inverted File with Flat compression) - Balanced performance and accuracy
+- **IVFPQ** (Inverted File with Product Quantization) - Reduced memory usage and faster distance computation
 - **Flat** - Exact search with maximum accuracy
 - And more index types for different use cases
 
