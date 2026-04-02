@@ -197,7 +197,7 @@ func (t *LSMTree) newWalFile() string {
 }
 
 func (t *LSMTree) sstFile(level int, seq int32) string {
-	return path.Join(t.conf.Dir, "sstfile", fmt.Sprintf("%d_%d.sst", level, seq))
+	return path.Join("sstfile", fmt.Sprintf("%d_%d.sst", level, seq))
 }
 
 func walFileToMemTableIndex(walFile string) int {

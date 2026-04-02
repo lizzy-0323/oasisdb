@@ -17,7 +17,7 @@ func (t *LSMTree) restoreMemTables(wals []fs.DirEntry) error {
 	// 1. restore memtable, and to memory
 	for i := 0; i < len(wals); i++ {
 		name := wals[i].Name()
-		file := path.Join(t.conf.Dir, "walfile", name)
+		file := path.Join(t.conf.Dir, "walfile", "memtable", name)
 		logger.Debug("Restoring wal file", "wal_file", file)
 		walReader, err := wal.NewWALReader(file)
 		if err != nil {
@@ -47,18 +47,12 @@ func (t *LSMTree) restoreMemTables(wals []fs.DirEntry) error {
 
 func (t *LSMTree) constructMemTables() error {
 	// 1. read wal dir to get all the wal files
-	rawFiles, err := os.ReadDir(path.Join(t.conf.Dir, "walfile"))
+	rawFiles, err := os.ReadDir(path.Join(t.conf.Dir, "walfile", "memtable"))
 	if err != nil {
 		return err
 	}
 
-	// 2. sort the wal files
-	files := make([]string, 0, len(rawFiles))
-	for _, rawFile := range rawFiles {
-		files = append(files, rawFile.Name())
-	}
-	sort.Strings(files)
-	// 3. ensure the files are in order
+	// 2. ensure the files are in order
 	var wals []fs.DirEntry
 	for _, entry := range rawFiles {
 		if entry.IsDir() {
@@ -69,14 +63,17 @@ func (t *LSMTree) constructMemTables() error {
 		}
 		wals = append(wals, entry)
 	}
+	sort.Slice(wals, func(i, j int) bool {
+		return walFileToMemTableIndex(wals[i].Name()) < walFileToMemTableIndex(wals[j].Name())
+	})
 
-	// 4. if wals is empty, return new memtable
+	// 3. if wals is empty, return new memtable
 	if len(wals) == 0 {
 		t.memTable, err = t.newMemTable()
 		return err
 	}
 
-	// 5. restore memtables by wals
+	// 4. restore memtables by wals
 	return t.restoreMemTables(wals)
 }
 
@@ -99,7 +96,7 @@ func (t *LSMTree) constructTree() error {
 }
 
 func (t *LSMTree) loadNode(sstEntry fs.DirEntry) error {
-	sstReader, err := sstable.NewSSTableReader(sstEntry.Name(), t.conf)
+	sstReader, err := sstable.NewSSTableReader(path.Join("sstfile", sstEntry.Name()), t.conf)
 	if err != nil {
 		return err
 	}
@@ -165,7 +162,7 @@ func getLevelSeqFromSSTFile(file string) (level int, seq int32) {
 }
 
 func (t *LSMTree) getSortedSSTEntries() ([]fs.DirEntry, error) {
-	allEntries, err := os.ReadDir(t.conf.Dir)
+	allEntries, err := os.ReadDir(path.Join(t.conf.Dir, "sstfile"))
 	if err != nil {
 		return nil, err
 	}
