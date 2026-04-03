@@ -48,6 +48,11 @@ lint:
 	@echo "Running linter..."
 	$(GOLINT)
 
+bench-recall:
+	@echo "Building benchrecall (issue #29 recall–QPS tool)..."
+	mkdir -p bin
+	$(GOBUILD) -o bin/benchrecall ./cmd/benchrecall
+
 help:
 	@echo "Available targets:"
 	@echo "  all: Clean, build, test, lint, run, release"
@@ -58,6 +63,7 @@ help:
 	@echo "  docker-build: Build Docker image"
 	@echo "  docker-run: Run container exposing port 8080"
 	@echo "  run: Run the application"
+	@echo "  bench-recall: Build cmd/benchrecall binary"
 	@echo "  help: Show this help message"
 
-.PHONY: all test clean engine build lint run docker-build docker-run release help
+.PHONY: all test clean engine build lint run docker-build docker-run release help bench-recall

@@ -11,6 +11,9 @@ sstfile
 coverage.out
 *.log
 
+# Benchmark datasets (Fashion-MNIST download)
+benchmarks/data/*.gz
+benchmarks/data/**/sift_*.fvecs
 
 
 
