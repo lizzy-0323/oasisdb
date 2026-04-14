@@ -39,6 +39,10 @@ func (t *LSMTree) compactLevel(level int) {
 
 	// get nodes in level i, and compact them to level i + 1
 	pickedNodes := t.pickCompactNodes(level)
+	if len(pickedNodes) == 0 {
+		logger.Debug("No nodes to compact, skipping", "level", level)
+		return
+	}
 	logger.Debug("Picked nodes for compaction", "level", level, "node_count", len(pickedNodes))
 
 	// insert to level i + 1 target sstWriter
@@ -187,6 +191,10 @@ func (t *LSMTree) compactMemTable(memCompactItem *memTableCompactItem) {
 }
 
 func (t *LSMTree) pickCompactNodes(level int) []*Node {
+	if level < 0 || level >= len(t.nodes) || len(t.nodes[level]) == 0 {
+		return nil
+	}
+
 	// read half nodes
 	startKey := t.nodes[level][0].Start()
 	endKey := t.nodes[level][0].End()
